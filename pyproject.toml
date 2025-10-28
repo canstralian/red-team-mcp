@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "redteam-mcp-server"
+version = "1.0.0"
+description = "Offensive security toolkit MCP server for authorized penetration testing"
+authors = [
+    {name = "Security Team", email = "security@example.com"}
+]
+dependencies = [
+    "fastmcp>=0.2.0",
+    "httpx>=0.25.0",
+    "pydantic>=2.0.0",
+]
+requires-python = ">=3.8"
+
+[project.urls]
+Homepage = "https://github.com/example/redteam-mcp-server"
+Documentation = "https://github.com/example/redteam-mcp-server#readme"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[project.scripts]
+redteam-mcp = "src.main:main"

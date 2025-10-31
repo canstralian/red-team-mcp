@@ -118,6 +118,9 @@ if finding:
         print(f"  - {rec}")
 
 # Analyze an artifact with signature
+from datetime import timedelta
+
+# Analyze an artifact with signature
 finding = agent.analyze_artifact(
     artifact_path=Path("package.tar.gz"),
     signature_path=Path("package.tar.gz.sig"),

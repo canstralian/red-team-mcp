@@ -1,0 +1,122 @@
+name: Verification Integrity Scan
+
+on:
+  push:
+    branches: [ main, master, 'claude/**' ]
+  pull_request:
+    branches: [ main, master ]
+
+permissions:
+  contents: read
+  security-events: write  # Required for upload-sarif
+
+jobs:
+  verify:
+    name: Run Verification Integrity Agent
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          # Install verification module dependencies
+          pip install pydantic
+
+      - name: Run VerificationIntegrityAgent scan
+        id: scan
+        run: |
+          python tools/run_verification_scan.py --verbose --root .
+        continue-on-error: true
+
+      - name: Upload findings artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-findings
+          path: verification_findings.json
+          retention-days: 30
+
+      - name: Convert findings to SARIF
+        if: always()
+        run: |
+          python tools/sarif_reporter.py \
+            --findings verification_findings.json \
+            --rules tools/sarif_rules.json \
+            --output verification.sarif
+
+      - name: Upload SARIF to GitHub Code Scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: verification.sarif
+          category: verification-integrity
+
+      - name: Check for blocking errors
+        run: |
+          python - <<'PY'
+          import json, sys
+
+          with open("verification.sarif") as f:
+              sarif = json.load(f)
+
+          results = sarif["runs"][0]["results"]
+          errors = [r for r in results if r.get("level") == "error"]
+          warnings = [r for r in results if r.get("level") == "warning"]
+
+          print(f"📊 Verification Integrity Summary:")
+          print(f"   - Total issues: {len(results)}")
+          print(f"   - Errors (blocking): {len(errors)}")
+          print(f"   - Warnings: {len(warnings)}")
+
+          if errors:
+              print(f"\n❌ Found {len(errors)} blocking errors:")
+              for err in errors[:5]:  # Show first 5
+                  print(f"   - {err['ruleId']}: {err['message']['text']}")
+              if len(errors) > 5:
+                  print(f"   ... and {len(errors) - 5} more")
+              sys.exit(1)
+          else:
+              print(f"\n✅ No blocking errors found")
+              sys.exit(0)
+          PY
+
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const sarif = JSON.parse(fs.readFileSync('verification.sarif', 'utf8'));
+            const results = sarif.runs[0].results;
+            const errors = results.filter(r => r.level === 'error');
+            const warnings = results.filter(r => r.level === 'warning');
+
+            const body = `## 🔒 Verification Integrity Scan Results
+
+            **Summary:**
+            - ❌ Errors (blocking): ${errors.length}
+            - ⚠️  Warnings: ${warnings.length}
+            - ℹ️  Total issues: ${results.length}
+
+            ${errors.length > 0 ? '**Blocking Errors:**\n' + errors.slice(0, 3).map(e =>
+              `- \`${e.ruleId}\`: ${e.message.text}`
+            ).join('\n') : '✅ No blocking errors found!'}
+
+            See the Security tab for full details.`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });

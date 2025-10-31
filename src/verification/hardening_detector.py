@@ -233,8 +233,8 @@ class HardeningDetector:
 
                         if complain_count > 0:
                             warnings.append(f"{complain_count} AppArmor profiles in complain mode")
-                    except:
-                        details = "AppArmor enabled"
+                    except (json.JSONDecodeError, ImportError):
+                        details = "AppArmor enabled, but status details could not be parsed"
             else:
                 warnings.append("AppArmor not enabled")
 

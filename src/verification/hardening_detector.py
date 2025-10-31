@@ -420,8 +420,15 @@ class HardeningDetector:
                     warnings=warnings
                 ))
 
-        except Exception:
-            pass
+        except Exception as e:
+            features.append(HardeningFeature(
+                name="SSH: Config Read",
+                category="ssh",
+                is_enabled=False,
+                confidence="low",
+                details="Could not read sshd_config",
+                warnings=[f"Failed to read /etc/ssh/sshd_config: {e}"]
+            ))
 
         return features
 

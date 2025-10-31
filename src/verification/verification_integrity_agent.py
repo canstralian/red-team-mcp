@@ -65,19 +65,62 @@ class VerificationIntegrityAgent:
     security controls and validate against Kicksecure-inspired best practices.
     """
 
-    def __init__(self, fixture_mode: bool = False):
+    def __init__(self, fixture_mode: bool = False, strict_mode: bool = False):
         """
         Initialize verification integrity agent.
 
         Args:
             fixture_mode: If True, use fixture data for testing
+            strict_mode: If True, apply stricter filtering and only scan actual verification scripts
         """
         self.fixture_mode = fixture_mode
+        self.strict_mode = strict_mode
         self.time_checker = TimeIntegrityChecker(fixture_mode=fixture_mode)
         self.provenance_checker = ProvenanceChecker(fixture_mode=fixture_mode)
         self.apt_checker = AptSecurityChecker(fixture_mode=fixture_mode)
         self.hardening_detector = HardeningDetector(fixture_mode=fixture_mode)
         self.confidence_model = ConfidenceModel()
+
+        # Paths to exclude from scanning
+        self.exclusion_patterns = [
+            'src/verification/',  # Don't scan the verification library itself
+            'tests/',             # Don't scan tests
+            'docs/',              # Don't scan documentation
+            '.github/',           # Don't scan CI configs
+            'tools/',             # Don't scan tooling
+            'src/main.py',        # Don't scan red team offensive tools
+            'src/models.py',
+            'src/payloads',
+            'src/advanced_attacks/',
+            'src/stealth/',
+            'src/resilience/',
+            'README.md',
+            'SECURITY.md',
+            'LICENSE',
+        ]
+
+    def _should_exclude_file(self, file_path: Path) -> bool:
+        """
+        Check if file should be excluded from scanning.
+
+        Args:
+            file_path: Path to file
+
+        Returns:
+            True if file should be excluded
+        """
+        file_str = str(file_path)
+
+        # Check exclusion patterns
+        for pattern in self.exclusion_patterns:
+            if pattern in file_str:
+                return True
+
+        # Don't scan the payloads module
+        if 'payloads' in file_str.lower():
+            return True
+
+        return False
 
     def analyze_file(self, file_path: Path) -> Optional[VerificationFinding]:
         """
@@ -92,6 +135,10 @@ class VerificationIntegrityAgent:
         if not file_path.exists():
             return None
 
+        # Check exclusions first
+        if self._should_exclude_file(file_path):
+            return None
+
         # Read file content
         try:
             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
@@ -103,7 +150,7 @@ class VerificationIntegrityAgent:
         artifact_type = self._determine_artifact_type(file_path, content)
 
         # Skip if not relevant
-        if not self._is_verification_relevant(content):
+        if not self._is_verification_relevant(file_path, content):
             return None
 
         # Analyze controls
@@ -264,15 +311,58 @@ class VerificationIntegrityAgent:
         else:
             return "unknown"
 
-    def _is_verification_relevant(self, content: str) -> bool:
-        """Check if file is relevant to verification."""
-        verification_keywords = [
-            'gpg', 'verify', 'signature', 'apt', 'update', 'package',
-            'hash', 'checksum', 'sha256', 'download', 'install'
+    def _is_verification_relevant(self, file_path: Path, content: str) -> bool:
+        """
+        Check if file is relevant to verification.
+
+        Only flag files that are actual verification/installation/build scripts,
+        not documentation, tests, or offensive security tools.
+
+        Args:
+            file_path: Path to file
+            content: File content
+
+        Returns:
+            True if file is a verification script
+        """
+        content_lower = content.lower()
+        filename = file_path.name.lower()
+
+        # Strong indicators of verification scripts
+        strong_indicators = [
+            'gpg --verify',
+            'gpg verify',
+            'gpg2 --verify',
+            'signature verification',
+            'verify signature',
+            'apt-get update',
+            'apt update',
+            'download and verify',
+            'checksum verification',
         ]
 
-        content_lower = content.lower()
-        return any(keyword in content_lower for keyword in verification_keywords)
+        # Count strong indicators
+        strong_count = sum(1 for indicator in strong_indicators if indicator in content_lower)
+
+        # If multiple strong indicators, it's likely a verification script
+        if strong_count >= 2:
+            return True
+
+        # Check for install/setup scripts with verification
+        if any(name in filename for name in ['install', 'setup', 'deploy', 'build']):
+            if any(keyword in content_lower for keyword in ['gpg', 'signature', 'verify', 'checksum']):
+                return True
+
+        # Shell scripts that do package management with verification
+        if file_path.suffix in ['.sh', '.bash']:
+            has_package_mgmt = any(word in content_lower for word in ['apt-get', 'apt ', 'dnf', 'yum', 'pacman'])
+            has_verification = any(word in content_lower for word in ['gpg', 'signature', 'verify'])
+
+            if has_package_mgmt and has_verification:
+                return True
+
+        # Default: not a verification script
+        return False
 
     def _looks_like_signed_artifact(self, file_path: Path) -> bool:
         """Check if artifact appears to have a signature."""

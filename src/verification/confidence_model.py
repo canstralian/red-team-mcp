@@ -89,6 +89,9 @@ class ConfidenceModel:
         recommendations = []
 
         # Score time integrity
+        # Note: Only treat time integrity as critical if we're actually doing verification
+        has_verification = provenance_result is not None
+
         if time_result:
             time_score = self._score_time_integrity(time_result)
             component_scores["time_integrity"] = time_result.confidence
@@ -98,8 +101,12 @@ class ConfidenceModel:
                 factors_met.append("Trusted time source detected")
             else:
                 factors_failed.append("No trusted time source")
-                if time_result.confidence == "low":
+                # Only mark as critical if we're doing verification AND time source is low
+                if time_result.confidence == "low" and has_verification:
                     critical_issues.append("Low confidence time source - freshness checks unreliable")
+                elif time_result.confidence == "low":
+                    # Warn but don't mark as critical if no verification happening
+                    recommendations.append("Time source confidence is low (consider using sdwdate)")
 
             recommendations.extend(time_result.warnings)
 

@@ -13,8 +13,10 @@ dependencies = [
     "fastmcp>=0.2.0",
     "httpx>=0.25.0",
     "pydantic>=2.0.0",
+    "SQLAlchemy>=2.0,<3.0",
+    "alembic>=1.13.1",
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.11"
 
 [project.urls]
 Homepage = "https://github.com/example/redteam-mcp-server"

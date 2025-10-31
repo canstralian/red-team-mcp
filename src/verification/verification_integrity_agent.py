@@ -143,7 +143,9 @@ class VerificationIntegrityAgent:
         try:
             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
-        except Exception:
+        except Exception as e:
+            # Consider adding a logging framework to report this error.
+            print(f"Error reading file {file_path}: {e}", file=sys.stderr)
             return None
 
         # Determine artifact type

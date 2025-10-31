@@ -249,8 +249,9 @@ class AptSecurityChecker:
                         sources.append(source_info)
 
         except Exception as e:
-            # Return empty list if file can't be read
-            pass
+            # Log the error, but continue, as the file might be unreadable.
+            # Consider adding a logging mechanism.
+            print(f"Warning: Could not parse APT sources file {file_path}: {e}")
 
         return sources
 

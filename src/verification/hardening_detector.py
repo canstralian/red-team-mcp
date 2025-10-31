@@ -383,8 +383,8 @@ class HardeningDetector:
                         warnings=warnings
                     ))
 
-        except Exception:
-            pass
+        except Exception as e:
+            warnings.append(f"Could not check filesystem mounts: {e}")
 
         return features
 

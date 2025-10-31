@@ -407,7 +407,9 @@ class ProvenanceChecker:
             if result.returncode == 0 and "pub" in result.stdout:
                 return True
 
-        except (subprocess.SubprocessError, FileNotFoundError):
+        except (subprocess.SubprocessError, FileNotFoundError) as e:
+            # Cannot validate chain, but this is not a failure of the key itself.
+            # It's a failure of the environment. Consider logging this.
             pass
 
         return False

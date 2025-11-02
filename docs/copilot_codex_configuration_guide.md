@@ -165,6 +165,8 @@ on:
 
 jobs:
   dependencies:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

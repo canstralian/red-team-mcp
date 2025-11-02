@@ -14,6 +14,8 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 import re
 
+from .base import BaseVerificationChecker, FileSystemUtils
+
 
 class AptTransportSecurity(str, Enum):
     """APT transport security levels."""
@@ -49,7 +51,7 @@ class AptSecurityResult:
     metadata: Dict[str, Any]
 
 
-class AptSecurityChecker:
+class AptSecurityChecker(BaseVerificationChecker):
     """
     Check APT sources for security configuration.
 
@@ -59,17 +61,6 @@ class AptSecurityChecker:
     - HTTPS vs HTTP transport
     - Suspicious or untrusted sources
     """
-
-    def __init__(self, fixture_mode: bool = False, fixture_data: Optional[Dict] = None):
-        """
-        Initialize APT security checker.
-
-        Args:
-            fixture_mode: If True, use fixture data instead of reading system files
-            fixture_data: Test fixture data for CI/testing
-        """
-        self.fixture_mode = fixture_mode
-        self.fixture_data = fixture_data or {}
 
     def check_apt_security(
         self,
@@ -234,24 +225,18 @@ class AptSecurityChecker:
         """
         sources = []
 
-        try:
-            with open(file_path, 'r') as f:
-                for line_num, line in enumerate(f, 1):
-                    line = line.strip()
+        # Use utility for safe file reading
+        lines = FileSystemUtils.read_file_lines(
+            file_path,
+            skip_comments=True,
+            skip_empty=True
+        )
 
-                    # Skip comments and empty lines
-                    if not line or line.startswith('#'):
-                        continue
-
-                    # Parse source line
-                    source_info = self._parse_source_line(line, line_num)
-                    if source_info:
-                        sources.append(source_info)
-
-        except Exception as e:
-            # Log the error, but continue, as the file might be unreadable.
-            # Consider adding a logging mechanism.
-            print(f"Warning: Could not parse APT sources file {file_path}: {e}")
+        for line_num, line in enumerate(lines, 1):
+            # Parse source line
+            source_info = self._parse_source_line(line, line_num)
+            if source_info:
+                sources.append(source_info)
 
         return sources
 

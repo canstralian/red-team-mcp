@@ -223,4 +223,4 @@ jobs:
 - Archive outdated instructions and link to superseded documents to maintain clarity.
 
 ## Closing Note
-By aligning Copilot and Codex usage with these standards, the Trading Bot Swarm community reinforces excellence in reliability, performance, and safety across all automated trading capabilities.
+By aligning Copilot and Codex usage with these standards, the Trading Bot Swarm community standardizes excellence and strengthens the reliability, performance, and safety of the trading ecosystem.

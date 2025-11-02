@@ -5,6 +5,12 @@
 ## Purpose and Scope
 This guide standardizes how GitHub Copilot and Codex operate within the Trading Bot Swarm ecosystem. Copilot must behave as a disciplined, policy-aware pair programmer that enhances human workflows without overriding intent. Codex-powered automations should follow the same guardrails, prioritizing capital protection, deterministic execution, and compliance with platform governance. The scope covers IDE setup, repository conventions, CI/CD practices, and contributor responsibilities to sustain consistent, high-quality, and secure automation across trading services and support tooling.
 
+### Pair Programmer Expectations
+- Treat Copilot as a junior engineer operating under explicit human direction. Require it to cite assumptions, alternatives, and validation steps before proposing code.
+- Configure Copilot suggestions to default to read-only until reviewers approve significant logic or risk-model adjustments.
+- Mandate that every automated suggestion includes references to the relevant tests, dashboards, or runbooks needed for validation.
+- Escalate Copilot responses that contradict risk controls, compliance mandates, or resiliency patterns to human maintainers immediately.
+
 ## Configuration Overview
 Establish these global expectations before enabling Copilot or Codex on a project. Treat the checklist as a baseline to be tightened for regulated or high-risk strategies.
 
@@ -47,11 +53,11 @@ Establish these global expectations before enabling Copilot or Codex on a projec
 Copilot and Codex must respect tailored instructions to maintain discipline. Configure IDE integrations (VS Code, JetBrains, Neovim) and automation agents to load these expectations at startup.
 
 ### Example Rules
-1. Never commit, push, or open a pull request without passing tests, linters, and static analyzers relevant to the change set.
+1. Never commit, push, or open a pull request without passing tests, linters, static analyzers, and policy checks relevant to the change set.
 2. Default to secure patterns (parameterized queries, safe evaluation replacements, sanitized logging) and raise explicit warnings if constraints cannot be met.
 3. Escalate uncertain decisions, ambiguous requirements, or conflicting instructions to human reviewers instead of guessing.
-4. Treat documentation-only changes as optional for automated testing, but never skip security, policy, or dependency gates when code changes occur.
-5. Track all assumptions in change logs, including expected risk impacts and rollback strategies.
+4. Treat documentation-only changes as optional for automated testing, but never skip security, policy, or dependency gates when code changes occur. Explicitly document when checks are skipped due to docs-only work.
+5. Track all assumptions in change logs, including expected risk impacts, rollback strategies, and any outstanding follow-up tasks.
 
 ### Conceptual YAML Configuration
 Provide custom instructions through IDE settings, repository onboarding scripts, or prompt templates using a consistent YAML schema:

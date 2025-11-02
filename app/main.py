@@ -13,7 +13,10 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.responses import JSONResponse, PlainTextResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.schemas import ScriptAuditIn, FileAuditIn, FindingOut
-from app.agents.verification_integrity import VerificationIntegrityAgent
+from app.agents.verification_integrity import (
+    VerificationIntegrityAgent,
+    AUDITABLE_ROOT,
+)
 from app.db.session import engine, get_session
 from app.db.models import Base
 from app.repositories.findings import save_finding, list_findings
@@ -58,7 +61,17 @@ async def audit_verification_script(
 async def audit_verification_script_from_file(
     payload: FileAuditIn, session: AsyncSession = Depends(get_session)
 ):
-    f = agent.analyze_file(Path(payload.file_path))
+    requested_path = Path(payload.file_path)
+    if requested_path.is_absolute():
+        raise HTTPException(status_code=400, detail="absolute paths are not allowed")
+
+    try:
+        resolved_path = (AUDITABLE_ROOT / requested_path).resolve()
+        resolved_path.relative_to(AUDITABLE_ROOT)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="invalid file path requested")
+
+    f = agent.analyze_file(resolved_path)
     if f is None:
         raise HTTPException(status_code=400, detail="file unreadable or too large")
     finding_json = {

@@ -86,15 +86,7 @@ async def audit_verification_script_from_file(
             status_code=400, detail="file path outside allowed directory"
         )
 
-    # --- Conflict Resolved ---
-    # Using the version with explicit file opening and error handling.
-    try:
-        with open(sanitized_path, "r", encoding="utf-8") as file_obj:
-            f = agent.analyze_file(file_obj, file_path=sanitized_path)
-    except (OSError, IOError):
-        raise HTTPException(status_code=400, detail="file unreadable or too large")
-    # --- End of Resolved Block ---
-
+    f = agent.analyze_file(sanitized_path)
     if f is None:
         raise HTTPException(status_code=400, detail="file unreadable or too large")
     

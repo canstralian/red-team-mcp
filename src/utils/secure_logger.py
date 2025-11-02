@@ -13,6 +13,7 @@ from typing import Any, Dict, Optional
 from datetime import datetime
 import uuid
 import os
+from contextvars import ContextVar
 
 
 class SecureJSONFormatter(logging.Formatter):
@@ -20,11 +21,11 @@ class SecureJSONFormatter(logging.Formatter):
     
     # Patterns for sensitive data that should be redacted
     SENSITIVE_PATTERNS = [
-        (r'password["\']?\s*[:=]\s*["\']?([^"\'}\s,]+)', '***REDACTED***'),
-        (r'token["\']?\s*[:=]\s*["\']?([^"\'}\s,]+)', '***REDACTED***'),
-        (r'api[_-]?key["\']?\s*[:=]\s*["\']?([^"\'}\s,]+)', '***REDACTED***'),
-        (r'secret["\']?\s*[:=]\s*["\']?([^"\'}\s,]+)', '***REDACTED***'),
-        (r'authorization["\']?\s*[:=]\s*["\']?([^"\'}\s,]+)', '***REDACTED***'),
+        (r'password["\']?\s*[:=]\s*["\']?(?:[^"\'}\s,]+)', 'password=***REDACTED***'),
+        (r'token["\']?\s*[:=]\s*["\']?(?:[^"\'}\s,]+)', 'token=***REDACTED***'),
+        (r'api[_-]?key["\']?\s*[:=]\s*["\']?(?:[^"\'}\s,]+)', 'api_key=***REDACTED***'),
+        (r'secret["\']?\s*[:=]\s*["\']?(?:[^"\'}\s,]+)', 'secret=***REDACTED***'),
+        (r'authorization["\']?\s*[:=]\s*["\']?(?:[^"\'}\s,]+)', 'authorization=***REDACTED***'),
         (r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', '***EMAIL***'),
         (r'\b\d{3}-\d{2}-\d{4}\b', '***SSN***'),  # SSN pattern
         (r'\b\d{16}\b', '***CARD***'),  # Credit card pattern
@@ -177,10 +178,10 @@ class CorrelationContext:
     Context manager for correlation IDs across requests.
     
     Correlation IDs help trace requests across distributed components
-    and multiple log entries.
+    and multiple log entries. Uses contextvars for proper async support.
     """
     
-    _correlation_id: Optional[str] = None
+    _correlation_id_var: ContextVar[Optional[str]] = ContextVar('correlation_id', default=None)
     
     @classmethod
     def get_correlation_id(cls) -> str:
@@ -190,9 +191,11 @@ class CorrelationContext:
         Returns:
             Current or new correlation ID
         """
-        if cls._correlation_id is None:
-            cls._correlation_id = str(uuid.uuid4())
-        return cls._correlation_id
+        correlation_id = cls._correlation_id_var.get()
+        if correlation_id is None:
+            correlation_id = str(uuid.uuid4())
+            cls._correlation_id_var.set(correlation_id)
+        return correlation_id
     
     @classmethod
     def set_correlation_id(cls, correlation_id: str) -> None:
@@ -202,12 +205,12 @@ class CorrelationContext:
         Args:
             correlation_id: Correlation ID to set
         """
-        cls._correlation_id = correlation_id
+        cls._correlation_id_var.set(correlation_id)
     
     @classmethod
     def clear(cls) -> None:
         """Clear correlation ID from context."""
-        cls._correlation_id = None
+        cls._correlation_id_var.set(None)
     
     @classmethod
     def new_correlation_id(cls) -> str:
@@ -250,11 +253,17 @@ class CorrelationAdapter(logging.LoggerAdapter):
         # Add correlation ID to extra data
         if 'extra' not in kwargs:
             kwargs['extra'] = {}
+        
         kwargs['extra']['correlation_id'] = correlation_id
         
         # Store extra data on record for formatter
+        # Only add extra_data if not already present
         if 'extra_data' not in kwargs['extra']:
-            kwargs['extra']['extra_data'] = kwargs.get('extra', {}).copy()
+            # Create a copy of extra dict excluding internal keys
+            extra_data = {k: v for k, v in kwargs['extra'].items() 
+                         if k not in ('correlation_id', 'extra_data')}
+            if extra_data:
+                kwargs['extra']['extra_data'] = extra_data
             
         return msg, kwargs
 

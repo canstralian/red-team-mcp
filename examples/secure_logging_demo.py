@@ -7,20 +7,36 @@ This example shows:
 - Using correlation IDs
 - Automatic sanitization of sensitive data
 - Structured JSON logging
+
+Usage:
+    # From repository root
+    python3 examples/secure_logging_demo.py
+    
+    # Or install in development mode first
+    pip3 install -e .
+    python3 examples/secure_logging_demo.py
 """
 
 import sys
 import os
 
-# Add parent directory to path for imports
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-from src.utils.secure_logger import (
-    setup_secure_logger,
-    CorrelationAdapter,
-    CorrelationContext,
-    get_logger
-)
+# Try relative import, fall back to sys.path manipulation for development
+try:
+    from src.utils.secure_logger import (
+        setup_secure_logger,
+        CorrelationAdapter,
+        CorrelationContext,
+        get_logger
+    )
+except ImportError:
+    # Add parent directory to path for development
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+    from src.utils.secure_logger import (
+        setup_secure_logger,
+        CorrelationAdapter,
+        CorrelationContext,
+        get_logger
+    )
 
 
 def example_basic_logging():

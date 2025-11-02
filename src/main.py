@@ -11,18 +11,22 @@ systems is illegal. Always obtain explicit written permission before using these
 
 import asyncio
 import sys
-from typing import Any, Dict
 
 from mcp.server.fastmcp import FastMCP
-from .models import *
+
+from .models import (
+    CredSprayInput,
+    ExploitSearchInput,
+    PayloadObfuscateInput,
+    PrivescEnumInput,
+    ResponseFormat,
+    ReverseShellInput,
+    SQLiPayloadInput,
+    WebShellInput,
+    XSSPayloadInput,
+)
 from .payloads import PayloadGenerator
-from .utils import truncate_response, obfuscate_payload
-
-
-# Constants
-CHARACTER_LIMIT = 25000
-API_TIMEOUT = 30.0
-USER_AGENT = "RedTeam-MCP/1.0 (Authorized Security Testing)"
+from .utils import obfuscate_payload, truncate_response
 
 # Initialize MCP server and payload generator
 mcp = FastMCP("redteam_mcp")

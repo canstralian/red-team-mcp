@@ -2,7 +2,7 @@
 
 import re
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 
@@ -268,8 +268,10 @@ class CredSprayInput(BaseModel):
     @field_validator('target_service')
     @classmethod
     def validate_service(cls, v: str) -> str:
-        """Validate service type."""
+        """Validate and normalize the service identifier using regex."""
+
         allowed = ['smb', 'ssh', 'rdp', 'http', 'ldap', 'ftp', 'winrm']
-        if v.lower() not in allowed:
+        normalized = v.strip().lower()
+        if not re.fullmatch(r"[a-z0-9_\-]+", normalized) or normalized not in allowed:
             raise ValueError(f"Service must be one of: {', '.join(allowed)}")
-        return v.lower()
+        return normalized

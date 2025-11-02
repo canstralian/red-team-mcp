@@ -8,16 +8,12 @@ protocol mimicry, and encrypted covert channels.
 
 import asyncio
 import random
-import ssl
-import time
-from typing import Dict, List, Optional, Any
-from urllib.parse import urlparse
+from typing import Dict
 import dns.resolver
 import httpx
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import base64
 import os
 

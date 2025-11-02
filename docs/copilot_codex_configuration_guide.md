@@ -174,6 +174,10 @@ jobs:
         if: hashFiles('package.json') != ''
         run: npm audit --production
   codeql:
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
     uses: github/codeql-action/analyze@v3
     with:
       category: "code-scanning"

@@ -7,4 +7,5 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 COPY . /app
 WORKDIR /app
-CMD ["python3", "app.py"]
+RUN pip3 install -e . || true
+CMD ["python3", "-m", "src.main"]

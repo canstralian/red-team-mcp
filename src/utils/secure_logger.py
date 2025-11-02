@@ -130,18 +130,13 @@ class SensitiveDataFilter(logging.Filter):
         """Return True if the record should be logged."""
         msg = str(record.getMessage())
         
-        # Check for common sensitive patterns in plain text
-        # This is a heuristic and may have false positives
-        if re.search(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', msg):
-            # Contains email address
-            return True  # Allow, but it should be masked
-        
+        # Check for patterns that should never be logged
+        # SSN pattern: xxx-xx-xxxx
         if re.search(r'\b\d{3}-\d{2}-\d{4}\b', msg):
-            # Contains SSN pattern
             return False  # Block SSN patterns
         
+        # Credit card pattern: 16 consecutive digits
         if re.search(r'\b\d{16}\b', msg):
-            # Contains what looks like a credit card
             return False  # Block potential credit card numbers
         
         return True
@@ -166,8 +161,8 @@ def mask_sensitive_data(data: Any, mask_value: str = "***MASKED***") -> Any:
     elif isinstance(data, (list, tuple)):
         return type(data)(mask_sensitive_data(item, mask_value) for item in data)
     elif isinstance(data, str):
-        # Check if the entire string looks like a sensitive value
-        if len(data) > 20 and not ' ' in data:
+        # Check if the entire string looks like a sensitive value (token-like)
+        if len(data) > 20 and ' ' not in data:
             # Could be a token or key
             return mask_value
         return data

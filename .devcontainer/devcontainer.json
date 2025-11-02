@@ -1,0 +1,48 @@
+{
+    "name": "Red Team MCP Dev Container",
+    "dockerFile": "../Dockerfile.debug",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "ms-python.debugpy",
+                "ms-python.black-formatter",
+                "ms-azuretools.vscode-docker",
+                "eamodio.gitlens",
+                "streetsidesoftware.code-spell-checker"
+            ],
+            "settings": {
+                "python.defaultInterpreterPath": "/usr/bin/python3",
+                "python.linting.enabled": true,
+                "python.linting.pylintEnabled": false,
+                "python.linting.flake8Enabled": true,
+                "python.formatting.provider": "black",
+                "python.testing.pytestEnabled": true,
+                "python.testing.unittestEnabled": false,
+                "editor.formatOnSave": true,
+                "terminal.integrated.defaultProfile.linux": "bash"
+            }
+        }
+    },
+    "forwardPorts": [3001, 5678],
+    "portsAttributes": {
+        "3001": {
+            "label": "Application",
+            "onAutoForward": "notify"
+        },
+        "5678": {
+            "label": "Python Debug",
+            "onAutoForward": "silent"
+        }
+    },
+    "postCreateCommand": "pip3 install --break-system-packages -e . && mkdir -p logs",
+    "remoteUser": "root",
+    "features": {
+        "ghcr.io/devcontainers/features/git:1": {},
+        "ghcr.io/devcontainers/features/github-cli:1": {}
+    },
+    "mounts": [
+        "source=${localWorkspaceFolder}/logs,target=/app/logs,type=bind,consistency=cached"
+    ]
+}

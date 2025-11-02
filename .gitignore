@@ -209,3 +209,7 @@ __marimo__/
 # Verification Integrity Agent outputs
 verification_findings.json
 verification.sarif
+
+# Code quality reports
+flake8-report.txt
+

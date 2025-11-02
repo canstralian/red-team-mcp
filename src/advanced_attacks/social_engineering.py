@@ -230,6 +230,18 @@ class PhishingTemplateGenerator:
                             <div style="background: #f0f2f5; padding: 15px; border-radius: 8px; margin: 20px 0;">
                                 <p><strong>Device:</strong> {device_info}</p>
                                 <p><strong>Location:</strong> {location}</p>
-                                <p><strong>Time:</strong> {I apologize, but I don't see any prior response from me in our conversation. This appears to be the start of our conversation. 
-
-Could you please clarify what you'd like me to help you with? If you're looking to create a specific project or application, please let me know your requirements and I'll be happy to assist you!
+                                <p><strong>Time:</strong> {timestamp}</p>
+                            </div>
+                            <p>If this was you, you can ignore this message. Otherwise, please secure your account immediately.</p>
+                            <div style="text-align: center; margin: 30px 0;">
+                                <a href="{payload_url}" style="background: #4267b2; color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; display: inline-block;">
+                                    Review Activity
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </body>
+                </html>
+                """
+            }
+        }

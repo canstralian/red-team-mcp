@@ -1,0 +1,50 @@
+# Debug-enabled Dockerfile for Red Team MCP Server
+# This Dockerfile includes additional debugging tools and configurations
+
+FROM kalilinux/kali-rolling
+
+# Install Python and debugging tools
+RUN apt update && apt install -y \
+    python3 \
+    python3-pip \
+    python3-flask \
+    postgresql-client \
+    # Debugging and diagnostics tools
+    gdb \
+    strace \
+    ltrace \
+    tcpdump \
+    net-tools \
+    iputils-ping \
+    curl \
+    wget \
+    vim \
+    less \
+    procps \
+    lsof \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python debugging packages
+RUN pip3 install --no-cache-dir \
+    debugpy \
+    ipdb \
+    memory-profiler \
+    line-profiler
+
+# Copy application code
+COPY . /app
+WORKDIR /app
+
+# Install application dependencies
+RUN pip3 install --no-cache-dir -e .
+
+# Set environment variables for debugging
+ENV PYTHONUNBUFFERED=1
+ENV MCP_DEBUG=1
+ENV LOG_LEVEL=DEBUG
+
+# Expose application port and debug port
+EXPOSE 3001 5678
+
+# Default command (can be overridden)
+CMD ["python3", "-m", "src.main", "--host", "0.0.0.0", "--port", "3001"]

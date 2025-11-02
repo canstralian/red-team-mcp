@@ -1,5 +1,10 @@
 FROM kalilinux/kali-rolling
-RUN apt update && apt install -y python3-flask postgresql-client
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    python3-flask \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
 COPY . /app
 WORKDIR /app
 CMD ["python3", "app.py"]

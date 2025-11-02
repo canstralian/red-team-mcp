@@ -46,6 +46,9 @@ app = FastAPI(title="Verification Integrity Service", lifespan=lifespan)
 async def audit_verification_script(
     payload: ScriptAuditIn, session: AsyncSession = Depends(get_session)
 ):
+    """
+    Analyzes a given string of script text for verification integrity issues.
+    """
     finding = agent.analyze_text(payload.script_text, file_path=payload.source_path)
     finding_json = {
         "file_path": finding.file_path,
@@ -61,6 +64,10 @@ async def audit_verification_script(
 async def audit_verification_script_from_file(
     payload: FileAuditIn, session: AsyncSession = Depends(get_session)
 ):
+    """
+    Analyzes a script file from the filesystem for verification integrity issues.
+    The file path must be relative to the defined AUDITABLE_ROOT.
+    """
     requested_path = Path(payload.file_path)
 
     if requested_path.is_absolute():
@@ -71,6 +78,7 @@ async def audit_verification_script_from_file(
     resolved_auditable_root = AUDITABLE_ROOT.resolve()
     sanitized_path = (resolved_auditable_root / requested_path).resolve()
 
+    # Path traversal check
     try:
         sanitized_path.relative_to(resolved_auditable_root)
     except ValueError:
@@ -78,9 +86,18 @@ async def audit_verification_script_from_file(
             status_code=400, detail="file path outside allowed directory"
         )
 
-    f = agent.analyze_file(sanitized_path)
+    # --- Conflict Resolved ---
+    # Using the version with explicit file opening and error handling.
+    try:
+        with open(sanitized_path, "r", encoding="utf-8") as file_obj:
+            f = agent.analyze_file(file_obj, file_path=sanitized_path)
+    except (OSError, IOError):
+        raise HTTPException(status_code=400, detail="file unreadable or too large")
+    # --- End of Resolved Block ---
+
     if f is None:
         raise HTTPException(status_code=400, detail="file unreadable or too large")
+    
     finding_json = {
         "file_path": f.file_path,
         "controls": [c.__dict__ for c in f.controls],
@@ -93,15 +110,18 @@ async def audit_verification_script_from_file(
 
 @app.get("/findings")
 async def get_recent_findings(session: AsyncSession = Depends(get_session)):
+    """
+    Retrieves a list of the 50 most recent finding entries from the database.
+    """
     rows = await list_findings(session, limit=50)
     out = []
     for r in rows:
         out.append(
             {
                 "id": r.id,
-                "file_path": r.file_path,
-                "summary": r.summary,
-                "risk_flags": r.risk_flags,
+                "file_path": r.file_data.get("file_path", "N/A"),
+                "summary": r.file_data.get("summary", "N/A"),
+                "risk_flags": r.file_data.get("risk_flags", []),
                 "created_at": r.created_at.isoformat(),
             }
         )

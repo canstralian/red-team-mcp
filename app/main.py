@@ -68,16 +68,21 @@ async def audit_verification_script_from_file(
             status_code=400, detail="absolute file paths are not allowed"
         )
 
-    sanitized_path = (AUDITABLE_ROOT / requested_path).resolve()
+    resolved_auditable_root = AUDITABLE_ROOT.resolve()
+    sanitized_path = (resolved_auditable_root / requested_path).resolve()
 
     try:
-        sanitized_path.relative_to(AUDITABLE_ROOT)
+        sanitized_path.relative_to(resolved_auditable_root)
     except ValueError:
         raise HTTPException(
             status_code=400, detail="file path outside allowed directory"
         )
 
-    f = agent.analyze_file(sanitized_path)
+    try:
+        with open(sanitized_path, "r", encoding="utf-8") as file_obj:
+            f = agent.analyze_file(file_obj, file_path=sanitized_path)
+    except (OSError, IOError):
+        raise HTTPException(status_code=400, detail="file unreadable or too large")
     if f is None:
         raise HTTPException(status_code=400, detail="file unreadable or too large")
     finding_json = {

@@ -23,6 +23,8 @@ from typing import Optional
 # Maximum file size to analyze (10MB)
 MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
 
+# Restrict file analysis to within this directory (adjust as appropriate)
+AUDITABLE_ROOT = Path("/srv/auditable_scripts").resolve()
 
 @dataclass(frozen=True)
 class ControlEvidence:
@@ -100,17 +102,25 @@ class VerificationIntegrityAgent:
             file_path: Path to script file
 
         Returns:
-            Finding object or None if file unreadable/too large
+            Finding object or None if file unreadable/too large or out-of-bounds
         """
         try:
-            if not file_path.exists() or not file_path.is_file():
+            # Restrict file access to under AUDITABLE_ROOT (mitigate path traversal)
+            file_path_resolved = file_path.resolve()
+            try:
+                file_path_resolved.relative_to(AUDITABLE_ROOT)
+            except ValueError:
+                # Path escapes root, not allowed
                 return None
 
-            if file_path.stat().st_size > MAX_FILE_SIZE_BYTES:
+            if not file_path_resolved.exists() or not file_path_resolved.is_file():
                 return None
 
-            content = file_path.read_text(encoding="utf-8", errors="ignore")
-            return self.analyze_text(content, file_path=str(file_path))
+            if file_path_resolved.stat().st_size > MAX_FILE_SIZE_BYTES:
+                return None
+
+            content = file_path_resolved.read_text(encoding="utf-8", errors="ignore")
+            return self.analyze_text(content, file_path=str(file_path_resolved))
 
         except (OSError, UnicodeDecodeError):
             return None

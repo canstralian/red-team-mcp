@@ -16,7 +16,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional, Dict, Any
 import json
-import subprocess
+
+from .base import BaseVerificationChecker, SubprocessUtils, FileSystemUtils
 
 
 class TimeSource(str, Enum):
@@ -40,7 +41,7 @@ class TimeIntegrityResult:
     metadata: Dict[str, Any]
 
 
-class TimeIntegrityChecker:
+class TimeIntegrityChecker(BaseVerificationChecker):
     """
     Check time source integrity following Kicksecure principles.
 
@@ -48,17 +49,6 @@ class TimeIntegrityChecker:
     timestamp manipulation attacks. It prioritizes sdwdate, falls back
     to verified NTP, and marks unverified sources as low confidence.
     """
-
-    def __init__(self, fixture_mode: bool = False, fixture_data: Optional[Dict] = None):
-        """
-        Initialize time integrity checker.
-
-        Args:
-            fixture_mode: If True, use fixture data instead of system checks
-            fixture_data: Test fixture data for CI/testing
-        """
-        self.fixture_mode = fixture_mode
-        self.fixture_data = fixture_data or {}
 
     def check_time_integrity(self) -> TimeIntegrityResult:
         """
@@ -115,26 +105,21 @@ class TimeIntegrityChecker:
         last_sync = None
         metadata = {"source_type": "sdwdate"}
 
-        # Check if sdwdate service is running
-        try:
-            result = subprocess.run(
-                ["systemctl", "is-active", "sdwdate"],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            service_active = result.returncode == 0
-            metadata["service_active"] = service_active
+        # Check if sdwdate service is running using utility
+        result = SubprocessUtils.run_command(
+            ["systemctl", "is-active", "sdwdate"],
+            timeout=5
+        )
+        
+        service_active = result is not None and result.returncode == 0
+        metadata["service_active"] = service_active
 
-            if not service_active:
-                warnings.append("sdwdate service is not active")
-        except (subprocess.SubprocessError, FileNotFoundError):
-            warnings.append("Could not check sdwdate service status")
-            metadata["service_active"] = False
+        if not service_active:
+            warnings.append("sdwdate service is not active")
 
         # Check sdwdate status file for last sync
         status_file = Path("/var/run/sdwdate/status")
-        if status_file.exists():
+        if FileSystemUtils.path_exists(status_file):
             try:
                 with open(status_file, 'r') as f:
                     status = f.read().strip()
@@ -145,7 +130,7 @@ class TimeIntegrityChecker:
 
         # Check last sync timestamp
         sync_file = Path("/var/run/sdwdate/last_sync")
-        if sync_file.exists():
+        if FileSystemUtils.path_exists(sync_file):
             try:
                 last_sync = datetime.fromtimestamp(
                     sync_file.stat().st_mtime,
@@ -192,64 +177,52 @@ class TimeIntegrityChecker:
         metadata = {"source_type": "ntp"}
 
         # Try timedatectl first (systemd-timesyncd)
-        try:
-            result = subprocess.run(
-                ["timedatectl", "status"],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
+        result = SubprocessUtils.run_command(
+            ["timedatectl", "status"],
+            timeout=5
+        )
 
-            if result.returncode == 0:
-                output = result.stdout.lower()
-                metadata["timedatectl_output"] = result.stdout
+        if result and result.returncode == 0:
+            output = result.stdout.lower()
+            metadata["timedatectl_output"] = result.stdout
 
-                # Check for NTP sync
-                ntp_synchronized = "ntp synchronized: yes" in output or \
-                                   "system clock synchronized: yes" in output
+            # Check for NTP sync
+            ntp_synchronized = "ntp synchronized: yes" in output or \
+                               "system clock synchronized: yes" in output
 
-                if ntp_synchronized:
-                    # NTP is synced, but not as trusted as sdwdate
-                    return TimeIntegrityResult(
-                        source=TimeSource.NTP_VERIFIED,
-                        current_time=datetime.now(timezone.utc),
-                        confidence="medium",
-                        is_synchronized=True,
-                        last_sync_time=datetime.now(timezone.utc),
-                        warnings=["Using NTP instead of sdwdate (less secure against time attacks)"],
-                        metadata=metadata
-                    )
-                else:
-                    warnings.append("NTP is not synchronized")
-
-        except (subprocess.SubprocessError, FileNotFoundError):
-            pass
+            if ntp_synchronized:
+                # NTP is synced, but not as trusted as sdwdate
+                return TimeIntegrityResult(
+                    source=TimeSource.NTP_VERIFIED,
+                    current_time=datetime.now(timezone.utc),
+                    confidence="medium",
+                    is_synchronized=True,
+                    last_sync_time=datetime.now(timezone.utc),
+                    warnings=["Using NTP instead of sdwdate (less secure against time attacks)"],
+                    metadata=metadata
+                )
+            else:
+                warnings.append("NTP is not synchronized")
 
         # Try ntpq as fallback
-        try:
-            result = subprocess.run(
-                ["ntpq", "-p"],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
+        result = SubprocessUtils.run_command(
+            ["ntpq", "-p"],
+            timeout=5
+        )
 
-            if result.returncode == 0:
-                metadata["ntpq_output"] = result.stdout
-                # Check for synchronized peers (lines starting with *)
-                if "*" in result.stdout:
-                    return TimeIntegrityResult(
-                        source=TimeSource.NTP_VERIFIED,
-                        current_time=datetime.now(timezone.utc),
-                        confidence="medium",
-                        is_synchronized=True,
-                        last_sync_time=datetime.now(timezone.utc),
-                        warnings=["Using NTP instead of sdwdate (less secure against time attacks)"],
-                        metadata=metadata
-                    )
-
-        except (subprocess.SubprocessError, FileNotFoundError):
-            pass
+        if result and result.returncode == 0:
+            metadata["ntpq_output"] = result.stdout
+            # Check for synchronized peers (lines starting with *)
+            if "*" in result.stdout:
+                return TimeIntegrityResult(
+                    source=TimeSource.NTP_VERIFIED,
+                    current_time=datetime.now(timezone.utc),
+                    confidence="medium",
+                    is_synchronized=True,
+                    last_sync_time=datetime.now(timezone.utc),
+                    warnings=["Using NTP instead of sdwdate (less secure against time attacks)"],
+                    metadata=metadata
+                )
 
         return None
 

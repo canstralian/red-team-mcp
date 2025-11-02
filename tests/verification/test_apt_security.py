@@ -123,7 +123,8 @@ class TestAptSecurityChecker(unittest.TestCase):
 
         self.assertTrue(result["uses_apt"])
         self.assertFalse(result["uses_tor"])
-        self.assertIn("apt-get install", result["apt_commands"][0])
+        self.assertGreaterEqual(len(result["apt_commands"]), 2)
+        self.assertIn("apt-get", result["apt_commands"][0])
         self.assertGreater(len(result["warnings"]), 0)
         self.assertIn("torified transport", result["warnings"][0])
 

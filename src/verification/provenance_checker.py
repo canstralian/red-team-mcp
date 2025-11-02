@@ -13,8 +13,9 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 import re
-import subprocess
 import hashlib
+
+from .base import BaseVerificationChecker, SubprocessUtils, FileSystemUtils
 
 
 class ProvenanceLevel(str, Enum):
@@ -50,7 +51,7 @@ class ProvenanceResult:
     metadata: Dict[str, Any]
 
 
-class ProvenanceChecker:
+class ProvenanceChecker(BaseVerificationChecker):
     """
     Check artifact provenance and signature binding.
 
@@ -60,17 +61,6 @@ class ProvenanceChecker:
     - Chain of trust validation
     - Freshness (via TimeIntegrityChecker)
     """
-
-    def __init__(self, fixture_mode: bool = False, fixture_data: Optional[Dict] = None):
-        """
-        Initialize provenance checker.
-
-        Args:
-            fixture_mode: If True, use fixture data instead of GPG commands
-            fixture_data: Test fixture data for CI/testing
-        """
-        self.fixture_mode = fixture_mode
-        self.fixture_data = fixture_data or {}
 
     def check_provenance(
         self,
@@ -245,76 +235,63 @@ class ProvenanceChecker:
         warnings = []
         metadata = {}
 
-        try:
-            # Run GPG verification
-            result = subprocess.run(
-                [
-                    "gpg",
-                    "--verify",
-                    "--status-fd", "1",
-                    str(signature_path),
-                    str(artifact_path)
-                ],
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
+        # Run GPG verification using utility
+        result = SubprocessUtils.run_command(
+            [
+                "gpg",
+                "--verify",
+                "--status-fd", "1",
+                str(signature_path),
+                str(artifact_path)
+            ],
+            timeout=30
+        )
 
-            metadata["gpg_output"] = result.stdout
-            metadata["gpg_stderr"] = result.stderr
-
-            # Parse GPG status output
-            is_valid = "[GNUPG:] VALIDSIG" in result.stdout
-
-            # Extract key ID
-            key_id_match = re.search(r'\[GNUPG:\] VALIDSIG (\S+)', result.stdout)
-            key_id = key_id_match.group(1) if key_id_match else "unknown"
-
-            # Extract timestamp
-            timestamp_match = re.search(r'\[GNUPG:\] SIGNATURE_TIMESTAMP (\d+)', result.stdout)
-            timestamp = timestamp_match.group(1) if timestamp_match else None
-
-            # Extract notation
-            notation = self._extract_notation(result.stdout)
-
-            # Check for warnings in GPG output
-            if "EXPKEYSIG" in result.stdout:
-                warnings.append("Signature made with expired key")
-            if "REVKEYSIG" in result.stdout:
-                warnings.append("Signature made with revoked key")
-            if "BADSIG" in result.stdout:
-                warnings.append("Bad signature")
-                is_valid = False
-
-            return SignatureInfo(
-                is_valid=is_valid,
-                key_id=key_id,
-                timestamp=timestamp,
-                notation=notation,
-                warnings=warnings,
-                metadata=metadata
-            )
-
-        except subprocess.TimeoutExpired:
-            warnings.append("GPG verification timed out")
+        if result is None:
+            warnings.append("GPG verification timed out or failed")
             return SignatureInfo(
                 is_valid=False,
                 key_id="unknown",
                 timestamp=None,
                 notation=None,
                 warnings=warnings,
-                metadata={"error": "timeout"}
+                metadata={"error": "timeout or command failed"}
             )
-        except Exception as e:
-            warnings.append(f"GPG verification failed: {e}")
-            return SignatureInfo(
-                is_valid=False,
-                key_id="unknown",
-                timestamp=None,
-                notation=None,
-                warnings=warnings,
-                metadata={"error": str(e)}
-            )
+
+        metadata["gpg_output"] = result.stdout
+        metadata["gpg_stderr"] = result.stderr
+
+        # Parse GPG status output
+        is_valid = "[GNUPG:] VALIDSIG" in result.stdout
+
+        # Extract key ID
+        key_id_match = re.search(r'\[GNUPG:\] VALIDSIG (\S+)', result.stdout)
+        key_id = key_id_match.group(1) if key_id_match else "unknown"
+
+        # Extract timestamp
+        timestamp_match = re.search(r'\[GNUPG:\] SIGNATURE_TIMESTAMP (\d+)', result.stdout)
+        timestamp = timestamp_match.group(1) if timestamp_match else None
+
+        # Extract notation
+        notation = self._extract_notation(result.stdout)
+
+        # Check for warnings in GPG output
+        if "EXPKEYSIG" in result.stdout:
+            warnings.append("Signature made with expired key")
+        if "REVKEYSIG" in result.stdout:
+            warnings.append("Signature made with revoked key")
+        if "BADSIG" in result.stdout:
+            warnings.append("Bad signature")
+            is_valid = False
+
+        return SignatureInfo(
+            is_valid=is_valid,
+            key_id=key_id,
+            timestamp=timestamp,
+            notation=notation,
+            warnings=warnings,
+            metadata=metadata
+        )
 
     def _extract_notation(self, gpg_output: str) -> Optional[Dict[str, str]]:
         """
@@ -394,23 +371,15 @@ class ProvenanceChecker:
         Returns:
             True if chain validation passes
         """
-        try:
-            # Check if key is in keyring
-            result = subprocess.run(
-                ["gpg", "--list-keys", key_id],
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
+        # Check if key is in keyring using utility
+        result = SubprocessUtils.run_command(
+            ["gpg", "--list-keys", key_id],
+            timeout=10
+        )
 
-            # Basic check: key exists and has trust level
-            if result.returncode == 0 and "pub" in result.stdout:
-                return True
-
-        except (subprocess.SubprocessError, FileNotFoundError) as e:
-            # Cannot validate chain, but this is not a failure of the key itself.
-            # It's a failure of the environment. Consider logging this.
-            pass
+        # Basic check: key exists and has trust level
+        if result and result.returncode == 0 and "pub" in result.stdout:
+            return True
 
         return False
 

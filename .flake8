@@ -6,7 +6,6 @@ max-line-length = 100
 ignore = 
     # W293: blank line contains whitespace (auto-fixable, not critical)
     W293,
-    # E501: line too long (already extended to 100 via max-line-length)
     # W503: line break before binary operator (conflicts with PEP 8)
     W503,
     # E203: whitespace before ':' (conflicts with black formatter)

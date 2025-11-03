@@ -142,6 +142,23 @@ class FileSystemUtils:
         except (OSError, PermissionError, UnicodeDecodeError):
             return []
 
+    @staticmethod
+    def read_file_content(path: Path) -> Optional[str]:
+        """
+        Safely read entire file content.
+
+        Args:
+            path: Path to file
+
+        Returns:
+            File content as string, or None if error
+        """
+        try:
+            with open(path, 'r') as f:
+                return f.read()
+        except (OSError, PermissionError, UnicodeDecodeError):
+            return None
+
 
 class ConfidenceCalculator:
     """Utilities for calculating confidence levels across verification modules."""

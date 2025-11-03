@@ -143,20 +143,22 @@ class FileSystemUtils:
             return []
 
     @staticmethod
-    def read_file_content(path: Path) -> Optional[str]:
+    def read_file_content(path: Path, encoding: str = 'utf-8', errors: str = 'replace') -> Optional[str]:
         """
         Safely read entire file content.
 
         Args:
             path: Path to file
+            encoding: File encoding (default: utf-8)
+            errors: How to handle encoding errors (default: replace)
 
         Returns:
             File content as string, or None if error
         """
         try:
-            with open(path, 'r') as f:
+            with open(path, 'r', encoding=encoding, errors=errors) as f:
                 return f.read()
-        except (OSError, PermissionError, UnicodeDecodeError):
+        except (OSError, PermissionError):
             return None
 
 

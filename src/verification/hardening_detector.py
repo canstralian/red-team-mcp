@@ -328,7 +328,6 @@ class HardeningDetector(BaseVerificationChecker):
     def _check_filesystem(self) -> List[HardeningFeature]:
         """Check filesystem mount options."""
         features = []
-        warnings = []
 
         # Check /tmp mount options using utility
         mounts = FileSystemUtils.read_file_content(Path("/proc/mounts"))

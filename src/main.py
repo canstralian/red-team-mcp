@@ -16,7 +16,7 @@ from typing import Any, Dict
 from mcp.server.fastmcp import FastMCP
 from .models import *
 from .payloads import PayloadGenerator
-from .utils import truncate_response, obfuscate_payload
+from .utils import truncate_response, obfuscate_payload, LEGAL_WARNING
 
 
 # Constants
@@ -206,7 +206,7 @@ async def obfuscate_payload_tool(params: PayloadObfuscateInput) -> str:
 - Some methods may require specific interpreters/decoders
 - Combine multiple methods for enhanced evasion
 
-⚠️  **LEGAL WARNING**: Use only on systems you have explicit written authorization to test.
+{LEGAL_WARNING}
 """
     
     return truncate_response(output, "Use --full flag for complete output")
@@ -297,7 +297,7 @@ async def exploit_search(params: ExploitSearchInput) -> str:
 3. Develop proof of concept
 4. Document findings
 
-⚠️  **LEGAL WARNING**: Use only on systems you have explicit written authorization to test.
+{LEGAL_WARNING}
 """
     
     return truncate_response(output, "Use --full flag for complete output")

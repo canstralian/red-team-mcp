@@ -16,6 +16,10 @@ The Red Team MCP Server must deliver comprehensive offensive security capabiliti
 
 The existing MCP server provides a solid foundation with:
 
+## Developer Automation Standards
+
+For guidance on configuring GitHub Copilot, Codex, and the associated automation workflows that power the Trading Bot Swarm ecosystem, see [Trading Bot Swarm GitHub Copilot & Codex Configuration Guide](docs/github-copilot-codex-guide.md).
+
 ### Current Capabilities:
 - **Payload Generation**: Reverse shells (Bash, Python, PowerShell, PHP, etc.)
 - **Web Shell Creation**: Multi-language web shells with obfuscation

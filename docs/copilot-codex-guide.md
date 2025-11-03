@@ -6,6 +6,12 @@ This guide standardizes how GitHub Copilot and Codex operate within the Trading 
 ## Configuration Overview
 Establish these global expectations before enabling Copilot or Codex on a project:
 
+### Pair Programming Conduct
+- Treat Copilot as a supervised pair programmer: keep humans in control of merge, deploy, and rollback actions.
+- Require agents to justify non-trivial changes in commit messages or PR summaries, citing risk controls and test evidence.
+- Reject auto-generated secrets, credentials, or infrastructure identifiers; force explicit human review for anything sensitive.
+- Enforce "no tests, no commit" for code-touching changes while allowing documentation-only patches to bypass automated test runs.
+
 ### Testing & Linting
 - Require every feature or bugfix branch to run unit, integration, and regression suites via `pytest`, with coverage thresholds defined per service.
 - Enforce static analysis with `ruff` (Python), `mypy` (type checking), and service-specific linters (e.g., `eslint` for TypeScript dashboards).
@@ -35,6 +41,7 @@ Establish these global expectations before enabling Copilot or Codex on a projec
 - Require pre-merge GitHub Actions for lint/test, security scanning, and policy conformance.
 - Deploy via Argo CD or GitHub Environments with manual approval gates for production.
 - Gate rollouts on canary metrics and automated rollback policies.
+- Use the `src.devops.build_env` helper to install `build-system.requires` before invoking `python -m build --no-isolation`, preventing backend resolution failures when `pyproject.toml` declares tools like `hatchling`.
 
 ### Version Control Practices
 - Use trunk-based development with short-lived feature branches, rebasing against `main`.
@@ -119,10 +126,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
+      - name: Provision build backend
+        if: hashFiles('pyproject.toml') != ''
+        run: |
+          python -m pip install build
+          PYTHONPATH=src python -m devops.build_env --pyproject pyproject.toml --quiet
       - name: Run linters
         run: |
           ruff check .
           mypy src
+      - name: Build package artifacts
+        if: hashFiles('pyproject.toml') != ''
+        run: python -m build -n
       - name: Run tests
         run: |
           pytest --maxfail=1 --disable-warnings --cov=src --cov-report=xml

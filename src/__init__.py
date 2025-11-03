@@ -1,4 +1,4 @@
-"""RedTeam MCP Server - Offensive Security Toolkit"""
+"""RedTeam MCP Server - Offensive Security Toolkit."""
 
 __version__ = "1.0.0"
 __author__ = "Security Team"

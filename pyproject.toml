@@ -17,8 +17,10 @@ dependencies = [
 requires-python = ">=3.8"
 
 [project.urls]
-Homepage = "https://github.com/example/redteam-mcp-server"
-Documentation = "https://github.com/example/redteam-mcp-server#readme"
+Homepage = "https://github.com/canstralian/red-team-mcp"
+Documentation = "https://github.com/canstralian/red-team-mcp#readme"
+Repository = "https://github.com/canstralian/red-team-mcp"
+Issues = "https://github.com/canstralian/red-team-mcp/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]

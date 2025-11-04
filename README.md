@@ -1,4 +1,66 @@
-# Red Team MCP Server Architecture
+# Red Team MCP Server
+
+A Model Context Protocol (MCP) server providing offensive security tools for authorized penetration testing and red team operations.
+
+⚠️ **LEGAL WARNING**: These tools are for AUTHORIZED security testing ONLY. Unauthorized access to computer systems is illegal. Always obtain explicit written permission before using these tools.
+
+## Quick Start
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/canstralian/red-team-mcp.git
+cd red-team-mcp
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Test the server
+python -m src.main --help
+```
+
+### Using with MCP Clients
+
+For detailed setup instructions with Claude Code, GitHub Copilot, and other MCP clients, see [SETUP.md](SETUP.md).
+
+**Quick configuration for Claude Code:**
+
+Add to `~/.config/claude-code/mcp_settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "redteam": {
+      "command": "python",
+      "args": ["-m", "src.main"],
+      "cwd": "/path/to/red-team-mcp",
+      "env": {
+        "PYTHONPATH": "."
+      }
+    }
+  }
+}
+```
+
+### Available Tools
+
+The server provides 8 security testing tools:
+
+1. **redteam_reverse_shell** - Generate reverse shell payloads (Bash, Python, PHP, PowerShell, etc.)
+2. **redteam_web_shell** - Create web shells for HTTP access
+3. **redteam_sqli_payloads** - SQL injection vectors for various databases
+4. **redteam_xss_payloads** - Cross-site scripting payloads with filter bypasses
+5. **redteam_privesc_enum** - Privilege escalation enumeration for Linux/Windows
+6. **redteam_obfuscate_payload** - Payload obfuscation (base64, hex, gzip, etc.)
+7. **redteam_cred_spray** - Credential spray attack generation
+8. **redteam_exploit_search** - Exploit database search
+
+For complete documentation, see [SETUP.md](SETUP.md).
+
+---
+
+## Architecture
 
 ## Red Team MCP Server Requirements
 

@@ -38,7 +38,7 @@ def test_parse_build_requirements_handles_missing_requires(tmp_path: Path) -> No
 def test_install_build_requirements_invokes_pip(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[list[str]] = []
 
-    def fake_run(cmd: list[str], check: bool) -> None:
+    def fake_run(cmd: list[str], **kwargs) -> None:
         calls.append(cmd)
 
     monkeypatch.setattr(build_env.subprocess, "run", fake_run)  # type: ignore[arg-type]

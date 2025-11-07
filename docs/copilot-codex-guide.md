@@ -33,6 +33,7 @@ Establish these global expectations before enabling Copilot or Codex on a projec
 
 ### CI/CD Integration
 - Require pre-merge GitHub Actions for lint/test, security scanning, and policy conformance.
+- Define explicit `permissions` blocks in workflows so bots can upload SARIF, annotate PRs, and avoid 403 errors (e.g., `pull-requests: write`, `issues: write`, `security-events: write`).
 - Deploy via Argo CD or GitHub Environments with manual approval gates for production.
 - Gate rollouts on canary metrics and automated rollback policies.
 
@@ -85,6 +86,9 @@ codex:
   escalation:
     - trigger: "security_policy_violation"
       action: "notify maintainers"
+  commentary:
+    - "for pull_request_target workflows, restrict actions to read-only tasks"
+    - "for standard pull_request workflows, rely on default GITHUB_TOKEN with least-privilege permissions"
 ```
 
 ## GitHub Workflow Example: Lint & Test Automation
@@ -132,6 +136,26 @@ jobs:
         with:
           files: ./coverage.xml
           fail_ci_if_error: true
+
+  verification-integrity:
+    needs: lint-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run verification agent
+        run: python tools/run_verification_scan.py --verbose --root .
+      - name: Upload SARIF to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: verification.sarif
 ```
 
 ## Semantic Release & Version Tagging Best Practices
@@ -216,6 +240,7 @@ jobs:
 - **Flaky tests**: Quarantine via pytest markers and raise a reliability issue with reproduction steps.
 - **Performance regressions**: Use profiling tooling (PySpy, cProfile) and compare metrics against baseline dashboards.
 - **Dependency conflicts**: Regenerate lockfiles with `pip-compile` and run compatibility suites in staging environments.
+- **403 integration errors**: Ensure workflows grant `pull-requests: write` and `issues: write`, and that actions rely on `${{ secrets.GITHUB_TOKEN }}` instead of expired personal tokens.
 
 ## Maintenance Schedule
 - Review this guide quarterly or when major tooling/policy changes occur.

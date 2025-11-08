@@ -7,7 +7,7 @@ on:
     branches: [ main, master ]
 
 permissions:
-  contents: read
+  contents: write
   security-events: write  # Required for upload-sarif
 
 jobs:
@@ -18,6 +18,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 'lts/*'
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -96,27 +101,65 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const sarif = JSON.parse(fs.readFileSync('verification.sarif', 'utf8'));
-            const results = sarif.runs[0].results;
-            const errors = results.filter(r => r.level === 'error');
-            const warnings = results.filter(r => r.level === 'warning');
+            try {
+              // Check if file exists
+              if (!fs.existsSync('verification.sarif')) {
+                throw new Error('SARIF file not found: verification.sarif');
+              }
 
-            const body = `## 🔒 Verification Integrity Scan Results
+              // Read and parse SARIF file
+              const sarifContent = fs.readFileSync('verification.sarif', 'utf8');
+              const sarif = JSON.parse(sarifContent);
 
-            **Summary:**
-            - ❌ Errors (blocking): ${errors.length}
-            - ⚠️  Warnings: ${warnings.length}
-            - ℹ️  Total issues: ${results.length}
+              // Validate SARIF structure
+              if (!sarif.runs || !Array.isArray(sarif.runs) || sarif.runs.length === 0) {
+                throw new Error('Invalid SARIF structure: missing or empty runs array');
+              }
+              if (!sarif.runs[0].results || !Array.isArray(sarif.runs[0].results)) {
+                throw new Error('Invalid SARIF structure: missing or invalid results array');
+              }
 
-            ${errors.length > 0 ? '**Blocking Errors:**\n' + errors.slice(0, 3).map(e =>
-              `- \`${e.ruleId}\`: ${e.message.text}`
-            ).join('\n') : '✅ No blocking errors found!'}
+              const results = sarif.runs[0].results;
+              const errors = results.filter(r => r.level === 'error');
+              const warnings = results.filter(r => r.level === 'warning');
 
-            See the Security tab for full details.`;
+              const body = `## 🔒 Verification Integrity Scan Results
 
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: body
-            });
+              **Summary:**
+              - ❌ Errors (blocking): ${errors.length}
+              - ⚠️  Warnings: ${warnings.length}
+              - ℹ️  Total issues: ${results.length}
+
+              ${errors.length > 0 ? '**Blocking Errors:**\n' + errors.slice(0, 3).map(e =>
+                `- \`${e.ruleId}\`: ${e.message.text}`
+              ).join('\n') : '✅ No blocking errors found!'}
+
+              See the Security tab for full details.`;
+
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body
+              });
+            } catch (err) {
+              console.error('[!] Error processing SARIF file:', err.message);
+              
+              // Post error message to PR
+              const errorBody = `## 🔒 Verification Integrity Scan Results
+              
+              ⚠️ **Error:** Failed to process verification results.
+              
+              Details: ${err.message}
+              
+              Please check the workflow logs for more information.`;
+              
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: errorBody
+              });
+              
+              throw err; // Re-throw to mark the step as failed
+            }

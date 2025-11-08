@@ -61,6 +61,15 @@ def install_build_requirements(
         The list of requirement strings that were installed. If no requirements
         are discovered the function returns an empty list and performs no
         installation.
+
+    Raises
+    ------
+    FileNotFoundError
+        If a path is provided but the file does not exist.
+    tomllib.TOMLDecodeError
+        If the pyproject.toml file contains invalid TOML syntax.
+    subprocess.CalledProcessError
+        If the pip installation command fails.
     """
 
     if isinstance(requirements, (str, Path)):

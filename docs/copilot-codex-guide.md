@@ -137,7 +137,7 @@ jobs:
           mypy src
       - name: Build package artifacts
         if: hashFiles('pyproject.toml') != ''
-        run: python -m build -n
+        run: python -m build --no-isolation
       - name: Run tests
         run: |
           pytest --maxfail=1 --disable-warnings --cov=src --cov-report=xml

@@ -66,8 +66,10 @@ def install_build_requirements(
     ------
     FileNotFoundError
         If a path is provided but the file does not exist.
-    tomllib.TOMLDecodeError
-        If the pyproject.toml file contains invalid TOML syntax.
+    TOMLDecodeError
+        If the pyproject.toml file contains invalid TOML syntax. The actual
+        exception type is ``tomllib.TOMLDecodeError`` (Python 3.11+) or
+        ``tomli.TOMLDecodeError`` (Python <3.11).
     subprocess.CalledProcessError
         If the pip installation command fails.
     """

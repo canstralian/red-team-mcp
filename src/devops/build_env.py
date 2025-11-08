@@ -120,7 +120,11 @@ def cli(argv: Sequence[str] | None = None) -> int:
         print(f"⚠️  No pyproject.toml found at {pyproject_path}", file=sys.stderr)
         return 1
 
-    requirements = parse_build_requirements(pyproject_path)
+    try:
+        requirements = parse_build_requirements(pyproject_path)
+    except tomllib.TOMLDecodeError as e:
+        print(f"❌ Error parsing {pyproject_path}: {e}", file=sys.stderr)
+        return 1
 
     if not requirements:
         print("ℹ️  No build-system requirements declared; nothing to install.")

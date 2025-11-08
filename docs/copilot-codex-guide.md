@@ -127,18 +127,17 @@ jobs:
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
       - name: Provision build backend
+        if: hashFiles('pyproject.toml') != ''
         run: |
-          if [ -f pyproject.toml ]; then
-            python -m pip install build
-            PYTHONPATH=src python -m devops.build_env --pyproject pyproject.toml --quiet
-          fi
+          python -m pip install build
+          PYTHONPATH=src python -m devops.build_env --pyproject pyproject.toml --quiet
       - name: Run linters
         run: |
           ruff check .
           mypy src
       - name: Build package artifacts
         if: hashFiles('pyproject.toml') != ''
-        run: python -m build -n
+        run: python -m build --no-isolation
       - name: Run tests
         run: |
           pytest --maxfail=1 --disable-warnings --cov=src --cov-report=xml

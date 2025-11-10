@@ -16,7 +16,7 @@ To align Copilot and Codex output with Trading Bot Swarm standards, every projec
 - **Linting and Static Analysis** – Enforce formatters (e.g., `black`, `ruff`, `prettier`) and static analyzers (`mypy`, `pyright`, `eslint`, `golangci-lint`) through pre-commit hooks and CI gates. Assistants should never suggest bypassing lint failures.
 - **Code Style and Architecture** – Use repository-specific style guides, SOLID-inspired modularization, and domain-driven contexts. Copilot suggestions must align with our asynchronous message bus patterns and shared libraries.
 - **Async and Concurrency Patterns** – Default to `asyncio`-based coordination with cancellation handling, bounded queues, and timeout enforcement. Avoid blocking calls in event loops and document fallback behavior for degraded infrastructure.
-- **Security Defaults** – Enforce least privilege IAM roles, parameterized queries, key rotation helpers, and secrets isolation (Vault/SM). Generated code must never log secrets or disable security checks.
+- **Security Defaults** – Enforce least privilege IAM roles, parameterized queries, key rotation helpers, and secrets isolation (Vault/Secrets Manager). Generated code must never log secrets or disable security checks.
 - **Logging and Observability** – Standardize structured logging (`json` or OpenTelemetry), correlation IDs, metric emission, and tracing instrumentation. Suggestions should include meaningful log levels and redaction helpers.
 - **CI/CD Integration** – Require assistants to note when pipelines (build, test, deploy) must be updated. Deploy workflows must target immutable artifacts (container images, packages) with provenance metadata.
 - **Version Control Hygiene** – Mandate small, reviewable pull requests, conventional commit messages, and branch protections (required reviews, passing checks). Copilot must encourage rebase over merge commits for feature branches.
@@ -99,6 +99,14 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      # Cache pip dependencies to speed up subsequent workflow runs
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
@@ -141,6 +149,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+      # Cache npm dependencies to speed up subsequent workflow runs
+      - name: Cache node modules
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
       - name: Install dependencies
         run: npm ci
       - name: Run semantic-release
@@ -170,19 +186,34 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Set up Python environment for pip-audit
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
       - name: Run pip-audit
         run: pip install pip-audit && pip-audit
       - name: Run npm audit (if package.json exists)
         if: hashFiles('package.json') != ''
         run: npm audit --production
+  # CodeQL security scanning job with proper permissions and workflow structure
   codeql:
     permissions:
-      actions: read
-      contents: read
-      security-events: write
-    uses: github/codeql-action/analyze@v3
-    with:
-      category: "code-scanning"
+      actions: read        # Required to analyze workflow metadata
+      contents: read       # Required to checkout repository
+      security-events: write  # Required to upload security scan results
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Initialize CodeQL with language detection and security analysis category
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python
+          category: "code-scanning"
+      # Perform CodeQL analysis and upload results to GitHub Security
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
 ```
 
 Augment these scans with Dependabot or Renovate for automated dependency updates and configure required reviewers for high-risk upgrades. Codex should propose mitigations (pinning versions, applying patches) when vulnerabilities surface.

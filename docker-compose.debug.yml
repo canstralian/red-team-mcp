@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  red-team-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile.debug
+    container_name: red-team-mcp-debug
+    ports:
+      - "3001:3001"  # Application port
+      - "5678:5678"  # Debug port for debugpy
+    volumes:
+      - .:/app
+      - ./logs:/app/logs
+    environment:
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+      - PYTHONUNBUFFERED=1
+      - PYTHONASYNCIODEBUG=1
+      - LOG_FILE=/app/logs/app.log
+    # Override default command to run without waiting for debugger
+    # Uncomment one of the following based on your needs:
+    
+    # Option 1: Run with debugpy and wait for debugger to attach
+    command: python3 -m debugpy --listen 0.0.0.0:5678 --wait-for-client src/main.py
+    
+    # Option 2: Run with debugpy but don't wait (faster startup)
+    # command: python3 -m debugpy --listen 0.0.0.0:5678 src/main.py
+    
+    # Option 3: Run normally without debugger
+    # command: python3 src/main.py
+    
+    # Option 4: Run with shell for manual debugging
+    # command: /bin/bash
+    # stdin_open: true
+    # tty: true
+    
+    networks:
+      - red-team-network
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  red-team-network:
+    driver: bridge

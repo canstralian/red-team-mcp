@@ -28,6 +28,7 @@ from .provenance_checker import ProvenanceChecker, ProvenanceResult
 from .apt_security import AptSecurityChecker, AptSecurityResult
 from .hardening_detector import HardeningDetector, HardeningResult
 from .confidence_model import ConfidenceModel, ConfidenceScore
+from .base import FileSystemUtils
 
 
 @dataclass
@@ -132,20 +133,16 @@ class VerificationIntegrityAgent:
         Returns:
             VerificationFinding if relevant, None if file is not verification-related
         """
-        if not file_path.exists():
+        if not FileSystemUtils.path_exists(file_path):
             return None
 
         # Check exclusions first
         if self._should_exclude_file(file_path):
             return None
 
-        # Read file content
-        try:
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                content = f.read()
-        except Exception as e:
-            # Consider adding a logging framework to report this error.
-            print(f"Error reading file {file_path}: {e}", file=sys.stderr)
+        # Read file content using utility
+        content = FileSystemUtils.read_file_content(file_path)
+        if content is None:
             return None
 
         # Determine artifact type

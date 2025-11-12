@@ -120,13 +120,13 @@ class TimeIntegrityChecker(BaseVerificationChecker):
         # Check sdwdate status file for last sync
         status_file = Path("/var/run/sdwdate/status")
         if FileSystemUtils.path_exists(status_file):
-            try:
-                with open(status_file, 'r') as f:
-                    status = f.read().strip()
-                    metadata["status"] = status
-                    is_synchronized = "success" in status.lower()
-            except Exception as e:
-                warnings.append(f"Could not read sdwdate status: {e}")
+            status_content = FileSystemUtils.read_file_content(status_file)
+            if status_content:
+                status = status_content.strip()
+                metadata["status"] = status
+                is_synchronized = "success" in status.lower()
+            else:
+                warnings.append("Could not read sdwdate status")
 
         # Check last sync timestamp
         sync_file = Path("/var/run/sdwdate/last_sync")

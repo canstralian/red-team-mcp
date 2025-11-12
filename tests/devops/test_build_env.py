@@ -74,3 +74,13 @@ def test_cli_missing_pyproject(tmp_path: Path, capsys: pytest.CaptureFixture[str
     assert exit_code == 1
     err = capsys.readouterr().err
     assert "No pyproject.toml" in err
+
+
+def test_cli_malformed_toml(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Test that malformed TOML files are handled gracefully."""
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text("this is not valid TOML [[[", encoding="utf-8")
+    exit_code = build_env.cli(["--pyproject", str(pyproject)])
+    assert exit_code == 1
+    err = capsys.readouterr().err
+    assert "Error parsing" in err

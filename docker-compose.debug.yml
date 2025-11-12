@@ -1,0 +1,52 @@
+# Docker Compose configuration for debugging
+version: '3.8'
+
+services:
+  redteam-mcp-debug:
+    build:
+      context: .
+      dockerfile: Dockerfile.debug
+    container_name: redteam-mcp-debug
+    ports:
+      - "3001:3001"  # Application port
+      - "5678:5678"  # Remote debugging port
+    environment:
+      - PYTHONUNBUFFERED=1
+      - MCP_DEBUG=1
+      - LOG_LEVEL=DEBUG
+      - ENABLE_REMOTE_DEBUG=1
+    volumes:
+      # Mount source code for live editing
+      - ./src:/app/src
+      - ./tests:/app/tests
+      # Mount logs directory
+      - ./logs:/app/logs
+    networks:
+      - redteam-network
+    # Keep container running for debugging
+    stdin_open: true
+    tty: true
+    # Override command to wait for debugger
+    command: python3 -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m src.main --host 0.0.0.0 --port 3001
+
+  # Optional: PostgreSQL for testing database operations
+  postgres-debug:
+    image: postgres:15-alpine
+    container_name: postgres-debug
+    environment:
+      - POSTGRES_USER=redteam
+      - POSTGRES_PASSWORD=debug_password
+      - POSTGRES_DB=redteam_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-debug-data:/var/lib/postgresql/data
+    networks:
+      - redteam-network
+
+networks:
+  redteam-network:
+    driver: bridge
+
+volumes:
+  postgres-debug-data:

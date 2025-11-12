@@ -1,0 +1,44 @@
+[flake8]
+# Maximum line length
+max-line-length = 100
+
+# Ignore specific error codes
+ignore = 
+    # W293: blank line contains whitespace (auto-fixable, not critical)
+    W293,
+    # W503: line break before binary operator (conflicts with PEP 8)
+    W503,
+    # E203: whitespace before ':' (conflicts with black formatter)
+    E203
+
+# Exclude directories
+exclude =
+    .git,
+    __pycache__,
+    .venv,
+    venv,
+    env,
+    build,
+    dist,
+    *.egg-info,
+    .tox,
+    .pytest_cache,
+    .mypy_cache,
+    node_modules
+
+# Show source code for each error
+show-source = True
+
+# Count the number of occurrences of each error/warning code
+count = True
+
+# Show statistics for each error/warning code
+statistics = True
+
+# Enable complexity checking
+max-complexity = 15
+
+# Per-file ignores
+per-file-ignores =
+    __init__.py:F401,F403
+    */models.py:F405

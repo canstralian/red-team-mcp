@@ -5,8 +5,13 @@ findings, and assessment runs during penetration testing operations.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
+
+
+def _utc_now() -> datetime:
+    """Return current UTC time as timezone-aware datetime."""
+    return datetime.now(timezone.utc)
 
 
 @dataclass
@@ -82,4 +87,4 @@ class AssessmentRun:
     targets: list[Target]
     tool_runs: list[ToolInvocation] = field(default_factory=list)
     findings: list[Finding] = field(default_factory=list)
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=_utc_now)

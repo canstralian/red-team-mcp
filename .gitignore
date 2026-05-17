@@ -205,3 +205,7 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Verification Integrity Agent outputs
+verification_findings.json
+verification.sarif

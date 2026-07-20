@@ -13,7 +13,8 @@ from enum import Enum
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 import re
-import subprocess
+
+from .base import BaseVerificationChecker, SubprocessUtils, FileSystemUtils
 
 
 class HardeningLevel(str, Enum):
@@ -46,7 +47,7 @@ class HardeningResult:
     metadata: Dict[str, Any]
 
 
-class HardeningDetector:
+class HardeningDetector(BaseVerificationChecker):
     """
     Detect system hardening posture.
 
@@ -57,17 +58,6 @@ class HardeningDetector:
     - Filesystem mount options (noexec, nosuid)
     - SSH hardening
     """
-
-    def __init__(self, fixture_mode: bool = False, fixture_data: Optional[Dict] = None):
-        """
-        Initialize hardening detector.
-
-        Args:
-            fixture_mode: If True, use fixture data instead of system checks
-            fixture_data: Test fixture data for CI/testing
-        """
-        self.fixture_mode = fixture_mode
-        self.fixture_data = fixture_data or {}
 
     def check_hardening(self) -> HardeningResult:
         """
@@ -204,42 +194,35 @@ class HardeningDetector:
         is_enabled = False
         details = "AppArmor not detected"
 
-        try:
-            # Check if AppArmor is enabled
-            result = subprocess.run(
-                ["aa-status", "--enabled"],
-                capture_output=True,
+        # Check if AppArmor is enabled using utility
+        result = SubprocessUtils.run_command(
+            ["aa-status", "--enabled"],
+            timeout=5
+        )
+
+        if result and result.returncode == 0:
+            is_enabled = True
+
+            # Get profile counts
+            status_result = SubprocessUtils.run_command(
+                ["aa-status", "--json"],
                 timeout=5
             )
 
-            if result.returncode == 0:
-                is_enabled = True
+            if status_result and status_result.returncode == 0:
+                try:
+                    import json
+                    status_data = json.loads(status_result.stdout)
+                    enforce_count = len(status_data.get("profiles", {}).get("enforce", []))
+                    complain_count = len(status_data.get("profiles", {}).get("complain", []))
+                    details = f"AppArmor active: {enforce_count} enforcing, {complain_count} complain"
 
-                # Get profile counts
-                status_result = subprocess.run(
-                    ["aa-status", "--json"],
-                    capture_output=True,
-                    text=True,
-                    timeout=5
-                )
-
-                if status_result.returncode == 0:
-                    try:
-                        import json
-                        status_data = json.loads(status_result.stdout)
-                        enforce_count = len(status_data.get("profiles", {}).get("enforce", []))
-                        complain_count = len(status_data.get("profiles", {}).get("complain", []))
-                        details = f"AppArmor active: {enforce_count} enforcing, {complain_count} complain"
-
-                        if complain_count > 0:
-                            warnings.append(f"{complain_count} AppArmor profiles in complain mode")
-                    except (json.JSONDecodeError, ImportError):
-                        details = "AppArmor enabled, but status details could not be parsed"
-            else:
-                warnings.append("AppArmor not enabled")
-
-        except (subprocess.SubprocessError, FileNotFoundError):
-            warnings.append("Could not check AppArmor status (aa-status not available)")
+                    if complain_count > 0:
+                        warnings.append(f"{complain_count} AppArmor profiles in complain mode")
+                except (json.JSONDecodeError, ImportError):
+                    details = "AppArmor enabled, but status details could not be parsed"
+        else:
+            warnings.append("AppArmor not enabled")
 
         return HardeningFeature(
             name="AppArmor",
@@ -269,26 +252,20 @@ class HardeningDetector:
             warnings = []
             details = description
 
-            try:
-                result = subprocess.run(
-                    ["sysctl", "-n", setting],
-                    capture_output=True,
-                    text=True,
-                    timeout=5
-                )
+            result = SubprocessUtils.run_command(
+                ["sysctl", "-n", setting],
+                timeout=5
+            )
 
-                if result.returncode == 0:
-                    actual_value = result.stdout.strip()
-                    is_enabled = actual_value == expected_value
-                    details = f"{description}: {actual_value} (expected: {expected_value})"
+            if result and result.returncode == 0:
+                actual_value = result.stdout.strip()
+                is_enabled = actual_value == expected_value
+                details = f"{description}: {actual_value} (expected: {expected_value})"
 
-                    if not is_enabled:
-                        warnings.append(f"Non-hardened value: {actual_value}")
-                else:
-                    warnings.append(f"Could not read sysctl {setting}")
-
-            except (subprocess.SubprocessError, FileNotFoundError):
-                warnings.append("sysctl not available")
+                if not is_enabled:
+                    warnings.append(f"Non-hardened value: {actual_value}")
+            else:
+                warnings.append(f"Could not read sysctl {setting}")
 
             features.append(HardeningFeature(
                 name=f"Kernel: {setting}",
@@ -318,14 +295,12 @@ class HardeningDetector:
             warnings = []
             details = f"Service {service} status"
 
-            try:
-                result = subprocess.run(
-                    ["systemctl", "is-enabled", service],
-                    capture_output=True,
-                    text=True,
-                    timeout=5
-                )
+            result = SubprocessUtils.run_command(
+                ["systemctl", "is-enabled", service],
+                timeout=5
+            )
 
+            if result:
                 status = result.stdout.strip()
 
                 # Service is hardened if disabled/masked
@@ -334,8 +309,7 @@ class HardeningDetector:
 
                 if not is_enabled and status == "enabled":
                     warnings.append(f"Unnecessary service {service} is enabled")
-
-            except (subprocess.SubprocessError, FileNotFoundError):
+            else:
                 # If service doesn't exist, that's good for hardening
                 is_enabled = True
                 details = f"{service}: not installed (good)"
@@ -355,36 +329,41 @@ class HardeningDetector:
         """Check filesystem mount options."""
         features = []
 
-        # Check /tmp mount options
-        try:
-            with open("/proc/mounts", 'r') as f:
-                mounts = f.read()
+        # Check /tmp mount options using utility
+        mounts = FileSystemUtils.read_file_content(Path("/proc/mounts"))
+        
+        if mounts:
+            # Check /tmp hardening
+            tmp_match = re.search(r'/tmp\s+\S+\s+\S+\s+([^\s]+)', mounts)
+            if tmp_match:
+                options = tmp_match.group(1).split(',')
+                has_noexec = 'noexec' in options
+                has_nosuid = 'nosuid' in options
+                has_nodev = 'nodev' in options
 
-                # Check /tmp hardening
-                tmp_match = re.search(r'/tmp\s+\S+\s+\S+\s+([^\s]+)', mounts)
-                if tmp_match:
-                    options = tmp_match.group(1).split(',')
-                    has_noexec = 'noexec' in options
-                    has_nosuid = 'nosuid' in options
-                    has_nodev = 'nodev' in options
+                feature_warnings = []
+                if not has_noexec:
+                    feature_warnings.append("/tmp not mounted with noexec")
+                if not has_nosuid:
+                    feature_warnings.append("/tmp not mounted with nosuid")
 
-                    warnings = []
-                    if not has_noexec:
-                        warnings.append("/tmp not mounted with noexec")
-                    if not has_nosuid:
-                        warnings.append("/tmp not mounted with nosuid")
-
-                    features.append(HardeningFeature(
-                        name="Filesystem: /tmp hardening",
-                        category="filesystem",
-                        is_enabled=has_noexec and has_nosuid and has_nodev,
-                        confidence="high",
-                        details=f"/tmp options: {', '.join(options)}",
-                        warnings=warnings
-                    ))
-
-        except Exception as e:
-            warnings.append(f"Could not check filesystem mounts: {e}")
+                features.append(HardeningFeature(
+                    name="Filesystem: /tmp hardening",
+                    category="filesystem",
+                    is_enabled=has_noexec and has_nosuid and has_nodev,
+                    confidence="high",
+                    details=f"/tmp options: {', '.join(options)}",
+                    warnings=feature_warnings
+                ))
+        else:
+            features.append(HardeningFeature(
+                name="Filesystem: /tmp hardening",
+                category="filesystem",
+                is_enabled=False,
+                confidence="low",
+                details="Could not read /proc/mounts",
+                warnings=["Could not check filesystem mounts"]
+            ))
 
         return features
 
@@ -393,13 +372,12 @@ class HardeningDetector:
         features = []
         sshd_config = Path("/etc/ssh/sshd_config")
 
-        if not sshd_config.exists():
+        if not FileSystemUtils.path_exists(sshd_config):
             return features
 
-        try:
-            with open(sshd_config, 'r') as f:
-                config = f.read()
-
+        config = FileSystemUtils.read_file_content(sshd_config)
+        
+        if config:
             # Check key hardening settings
             hardening_checks = {
                 "PermitRootLogin no": ("Root login disabled", r'^\s*PermitRootLogin\s+no'),
@@ -419,15 +397,14 @@ class HardeningDetector:
                     details=description,
                     warnings=warnings
                 ))
-
-        except Exception as e:
+        else:
             features.append(HardeningFeature(
                 name="SSH: Config Read",
                 category="ssh",
                 is_enabled=False,
                 confidence="low",
                 details="Could not read sshd_config",
-                warnings=[f"Failed to read /etc/ssh/sshd_config: {e}"]
+                warnings=["Failed to read /etc/ssh/sshd_config"]
             ))
 
         return features

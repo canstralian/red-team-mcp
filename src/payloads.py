@@ -8,6 +8,8 @@ All generated payloads should only be used with explicit written permission.
 import base64
 from typing import List, Optional
 
+from .utils import LEGAL_WARNING
+
 
 class PayloadGenerator:
     """Generator for various security testing payloads."""
@@ -68,7 +70,7 @@ class PayloadGenerator:
 2. Execute payload on target system
 3. Wait for connection
 
-⚠️  **LEGAL WARNING**: Use only on systems you have explicit written authorization to test.
+{LEGAL_WARNING}
 """
         return output
 
@@ -163,7 +165,7 @@ if(isset($_POST['pass']) && $_POST['pass'] == $password) {{
 2. Access via browser: `http://target/shell.{shell_type.split('_')[0]}?cmd=whoami`
 3. Execute commands via cmd parameter
 
-⚠️  **LEGAL WARNING**: Use only on systems you have explicit written authorization to test.
+{LEGAL_WARNING}
 """
         return output
 
@@ -245,7 +247,7 @@ if(isset($_POST['pass']) && $_POST['pass'] == $password) {{
 4. Extract sensitive data
 5. Document findings
 
-⚠️  **LEGAL WARNING**: Use only on systems you have explicit written authorization to test.
+{LEGAL_WARNING}
 """
         return output
 
@@ -319,7 +321,7 @@ if(isset($_POST['pass']) && $_POST['pass'] == $password) {{
 4. Craft bypass if needed
 5. Document impact
 
-⚠️  **LEGAL WARNING**: Use only on systems you have explicit written authorization to test.
+{LEGAL_WARNING}
 """
         return output
 
@@ -400,7 +402,7 @@ if(isset($_POST['pass']) && $_POST['pass'] == $password) {{
 4. Test in controlled environment
 5. Document privilege escalation path
 
-⚠️  **LEGAL WARNING**: Use only on systems you have explicit written authorization to test.
+{LEGAL_WARNING}
 """
         return output
 
@@ -469,6 +471,6 @@ if(isset($_POST['pass']) && $_POST['pass'] == $password) {{
 4. Document successful credentials
 5. Follow engagement rules of engagement
 
-⚠️  **LEGAL WARNING**: Use only on systems you have explicit written authorization to test.
+{LEGAL_WARNING}
 """
         return output

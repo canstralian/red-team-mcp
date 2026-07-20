@@ -11,6 +11,7 @@ from typing import Optional
 
 
 CHARACTER_LIMIT = 25000
+LEGAL_WARNING = "⚠️  **LEGAL WARNING**: Use only on systems you have explicit written authorization to test."
 
 
 def truncate_response(content: str, truncation_message: str = "Output truncated") -> str:

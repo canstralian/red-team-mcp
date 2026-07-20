@@ -30,6 +30,37 @@ The existing MCP server provides a solid foundation with:
 - Multi-format output support (Markdown/JSON)
 - Comprehensive payload obfuscation methods
 
+## Development and Debugging
+
+For developers and security researchers working with this project:
+
+### Documentation
+- **[Debugging Guide](docs/debugging-guide.md)** - Comprehensive debugging documentation covering Python, Docker, VS Code, and distributed tracing
+- **[Quick Reference](docs/debugging-quick-reference.md)** - Quick start guide for common debugging tasks
+- **[Examples](examples/)** - Working examples including secure logging demonstrations
+
+### Key Features
+- **Secure Logging**: Automatic sanitization of sensitive data (passwords, tokens, credentials)
+- **Correlation IDs**: Request tracing across distributed components
+- **Docker Debugging**: Debug-optimized Docker configurations with remote debugging support
+- **VS Code Integration**: Pre-configured launch configurations for local and remote debugging
+- **DevContainer Support**: Consistent development environment with VS Code DevContainers
+
+### Quick Start Debugging
+
+```bash
+# Enable debug mode
+export DEBUG=true LOG_LEVEL=DEBUG
+
+# Run with debugger
+docker-compose -f docker-compose.debug.yml up
+
+# Or run logging examples
+python3 examples/secure_logging_demo.py
+```
+
+See the [Debugging Guide](docs/debugging-guide.md) for detailed instructions.
+
 ## Design Enhancement 1: Stealth and Obfuscation
 
 ### Traffic Shaping and Protocol Obfuscation

@@ -61,6 +61,17 @@ def install_build_requirements(
         The list of requirement strings that were installed. If no requirements
         are discovered the function returns an empty list and performs no
         installation.
+
+    Raises
+    ------
+    FileNotFoundError
+        If a path is provided but the file does not exist.
+    TOMLDecodeError
+        If the pyproject.toml file contains invalid TOML syntax. The actual
+        exception type is ``tomllib.TOMLDecodeError`` (Python 3.11+) or
+        ``tomli.TOMLDecodeError`` (Python <3.11).
+    subprocess.CalledProcessError
+        If the pip installation command fails.
     """
 
     if isinstance(requirements, (str, Path)):
@@ -120,7 +131,11 @@ def cli(argv: Sequence[str] | None = None) -> int:
         print(f"⚠️  No pyproject.toml found at {pyproject_path}", file=sys.stderr)
         return 1
 
-    requirements = parse_build_requirements(pyproject_path)
+    try:
+        requirements = parse_build_requirements(pyproject_path)
+    except tomllib.TOMLDecodeError as e:
+        print(f"❌ Error parsing {pyproject_path}: {e}", file=sys.stderr)
+        return 1
 
     if not requirements:
         print("ℹ️  No build-system requirements declared; nothing to install.")

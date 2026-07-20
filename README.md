@@ -51,3 +51,22 @@ The existing MCP server provides a solid foundation with:
 - Implement certificate pinning bypass techniques
 - Monitor for DNS sinkholing and traffic inspection
 - Use ephemeral encryption keys with perfect forward secrecy
+
+## Development
+
+### Code Quality
+This project uses automated code quality scanning with flake8 to maintain high code standards. See [CODE_QUALITY.md](docs/CODE_QUALITY.md) for details on:
+- Running linters locally
+- CI/CD integration
+- Fixing common issues
+- Best practices
+
+### Testing
+Run tests with:
+```bash
+pytest tests/
+```
+
+### Contributing
+All pull requests must pass code quality checks before merging. Critical errors (E9xx, F8xx) are blocking.
+

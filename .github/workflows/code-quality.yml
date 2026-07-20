@@ -1,0 +1,133 @@
+name: Code Quality Scanning
+
+on:
+  push:
+    branches: [ main, master, 'claude/**', 'copilot/**' ]
+  pull_request:
+    branches: [ main, master ]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  flake8:
+    name: Python Code Quality (flake8)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8
+
+      - name: Run flake8
+        id: flake8
+        run: |
+          echo "Running flake8 code quality checks..."
+          # Run flake8 and capture output, continue on error
+          flake8 src/ tests/ --count --statistics > flake8-report.txt 2>&1 || true
+          cat flake8-report.txt
+        continue-on-error: true
+
+      - name: Upload flake8 report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flake8-report
+          path: flake8-report.txt
+          retention-days: 30
+
+      - name: Parse flake8 results
+        id: parse
+        if: always()
+        run: |
+          if [ -f flake8-report.txt ]; then
+            # Get total from last line when using --count
+            TOTAL_ISSUES=$(tail -1 flake8-report.txt 2>/dev/null | grep -E "^[0-9]+$" || echo "0")
+            echo "issues=$TOTAL_ISSUES" >> $GITHUB_OUTPUT
+            
+            # Check for critical errors (E9xx, F8xx)
+            CRITICAL=$(grep -E "E9[0-9]{2}|F8[0-9]{2}" flake8-report.txt | wc -l || echo "0")
+            echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
+          else
+            echo "issues=0" >> $GITHUB_OUTPUT
+            echo "critical=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let report = '';
+            try {
+              report = fs.readFileSync('flake8-report.txt', 'utf8');
+            } catch (e) {
+              report = 'No flake8 report generated';
+            }
+            
+            const issues = '${{ steps.parse.outputs.issues }}';
+            const critical = '${{ steps.parse.outputs.critical }}';
+            
+            // Get first 10 issues for preview
+            const lines = report.split('\n').filter(line => line.trim() && !line.match(/^\d+$/));
+            const preview = lines.slice(0, 10).join('\n');
+            const hasMore = lines.length > 10;
+            
+            const status = critical > 0 ? '❌' : issues > 0 ? '⚠️' : '✅';
+            
+            const body = `## ${status} Code Quality Report (flake8)
+            
+            **Summary:**
+            - Total issues: ${issues}
+            - Critical errors: ${critical}
+            
+            ${issues > 0 ? '**Sample Issues:**\n```\n' + preview + (hasMore ? '\n... and more\n' : '') + '```\n\n' : '✅ No code quality issues found!\n\n'}
+            ${critical > 0 ? '⚠️ **Critical errors found!** Please review and fix before merging.\n\n' : ''}
+            📊 Full report available in workflow artifacts.`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+      - name: Check for blocking errors
+        if: always()
+        run: |
+          CRITICAL=${{ steps.parse.outputs.critical }}
+          TOTAL=${{ steps.parse.outputs.issues }}
+          
+          echo "📊 Code Quality Summary:"
+          echo "   - Total issues: $TOTAL"
+          echo "   - Critical errors: $CRITICAL"
+          
+          # Threshold for warning about too many issues (can be adjusted)
+          WARNING_THRESHOLD=100
+          
+          if [ "$CRITICAL" -gt 0 ]; then
+            echo ""
+            echo "❌ Found $CRITICAL critical errors (E9xx, F8xx)"
+            echo "These must be fixed before merging:"
+            grep -E "E9[0-9]{2}|F8[0-9]{2}" flake8-report.txt || true
+            exit 1
+          elif [ "$TOTAL" -gt "$WARNING_THRESHOLD" ]; then
+            echo ""
+            echo "⚠️ Warning: $TOTAL code quality issues found (threshold: $WARNING_THRESHOLD)"
+            echo "Consider addressing these to maintain code quality"
+          else
+            echo ""
+            echo "✅ Code quality check passed"
+          fi

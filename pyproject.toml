@@ -16,6 +16,12 @@ dependencies = [
 ]
 requires-python = ">=3.8"
 
+[project.optional-dependencies]
+dev = [
+    "flake8>=7.0.0",
+    "pytest>=7.0.0",
+]
+
 [project.urls]
 Homepage = "https://github.com/example/redteam-mcp-server"
 Documentation = "https://github.com/example/redteam-mcp-server#readme"

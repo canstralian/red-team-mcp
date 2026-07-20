@@ -22,6 +22,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 import re
+import sys
 
 from .time_integrity import TimeIntegrityChecker, TimeIntegrityResult
 from .provenance_checker import ProvenanceChecker, ProvenanceResult

@@ -44,6 +44,7 @@ checksum verification
         "endless_data",
     }
 
+
 def test_file_read_error_is_reported_without_crashing(
     tmp_path: Path, capsys
 ) -> None:

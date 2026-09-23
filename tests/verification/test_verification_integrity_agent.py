@@ -18,16 +18,27 @@ def test_markdown_setup_guide_is_excluded(tmp_path: Path) -> None:
     assert agent.analyze_file(setup) is None
 
 
-def test_verification_shell_script_remains_relevant() -> None:
-    """The documentation exclusion must not hide actual verification scripts."""
-    script = Path("install.sh")
-    content = """#!/bin/sh
+def test_verification_shell_script_remains_relevant(tmp_path: Path) -> None:
+    """Executable verification content must survive the documentation exclusion."""
+    script = tmp_path / "install.sh"
+    script.write_text(
+        """#!/bin/sh
 curl -O package.tar.gz
 curl -O package.tar.gz.sig
 gpg --verify package.tar.gz.sig package.tar.gz
 checksum verification
-"""
+""",
+        encoding="utf-8",
+    )
 
-    agent = VerificationIntegrityAgent()
+    agent = VerificationIntegrityAgent(fixture_mode=True)
+    finding = agent.analyze_file(script)
 
-    assert agent._is_verification_relevant(script, content) is True
+    assert finding is not None
+    assert finding.artifact_type == "script"
+    assert {control.control_name for control in finding.controls} == {
+        "rollback",
+        "tampering",
+        "freeze",
+        "endless_data",
+    }

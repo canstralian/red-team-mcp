@@ -1,6 +1,7 @@
 """Regression tests for VerificationIntegrityAgent file classification."""
 
 from pathlib import Path
+from unittest.mock import patch
 
 from src.verification.verification_integrity_agent import VerificationIntegrityAgent
 
@@ -42,3 +43,24 @@ checksum verification
         "freeze",
         "endless_data",
     }
+
+
+def test_file_read_error_is_reported_without_crashing(
+    tmp_path: Path, capsys
+) -> None:
+    """Read failures should fail closed and report the file without raising."""
+    script = tmp_path / "install.sh"
+    script.write_text(
+        "#!/bin/sh\ngpg --verify package.sig package.tar.gz\nchecksum verification\n",
+        encoding="utf-8",
+    )
+    agent = VerificationIntegrityAgent(fixture_mode=True)
+
+    with patch("builtins.open", side_effect=OSError("synthetic read failure")):
+        finding = agent.analyze_file(script)
+
+    captured = capsys.readouterr()
+    assert finding is None
+    assert "Error reading file" in captured.err
+    assert "synthetic read failure" in captured.err
+

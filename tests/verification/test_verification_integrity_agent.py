@@ -9,7 +9,7 @@ def test_markdown_setup_guide_is_excluded(tmp_path: Path) -> None:
     """Documentation must not be treated as an executable verification artifact."""
     setup = tmp_path / "SETUP.md"
     setup.write_text(
-        "# Setup\n\n## Verify Installation\n\nRun \`python -m src.main --help\`.\n",
+        "# Setup\n\n## Verify Installation\n\nRun `python -m src.main --help`.\n",
         encoding="utf-8",
     )
 

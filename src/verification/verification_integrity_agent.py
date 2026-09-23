@@ -111,6 +111,12 @@ class VerificationIntegrityAgent:
         """
         file_str = str(file_path)
 
+        # Markdown files are documentation, not executable verification artifacts.
+        # Excluding them here prevents prose such as "Verify Installation" in
+        # SETUP.md from being misclassified as a GPG verification script.
+        if file_path.suffix.lower() == ".md":
+            return True
+
         # Check exclusion patterns
         for pattern in self.exclusion_patterns:
             if pattern in file_str:
